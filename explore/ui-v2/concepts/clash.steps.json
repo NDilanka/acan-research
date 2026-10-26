@@ -53,11 +53,11 @@
     }
   },
   {
-    "eval": "(()=>{const rows=[...document.querySelectorAll('.hint,#cbar,#clashToolbar')].map(e=>Math.round(e.getBoundingClientRect().top));return {hintLines:document.querySelectorAll('.hint').length,toolbarKeys:document.querySelectorAll('#clashToolbar kbd').length,topStrips:new Set(rows).size,hintAboveScene:getComputedStyle(document.querySelector('.hint')).zIndex,waiting:document.querySelector('#clashWaiting').textContent}})()",
+    "eval": "(()=>{const rows=[...document.querySelectorAll('.hint,#cbar,#clashToolbar')].filter(e=>e.getClientRects().length).map(e=>Math.round(e.getBoundingClientRect().top));return {hintLines:document.querySelectorAll('.hint').length,toolbarKeys:document.querySelectorAll('#clashToolbar kbd').length,topStrips:new Set(rows).size,hintAboveScene:getComputedStyle(document.querySelector('.hint')).zIndex,waiting:document.querySelector('#clashWaiting').textContent}})()",
     "expect": {
       "hintLines": 1,
       "toolbarKeys": 0,
-      "topStrips": 2,
+      "topStrips": 1,
       "hintAboveScene": "45",
       "waiting": "2 clashes"
     }

@@ -29,7 +29,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -49,7 +49,7 @@
     ]
   },
   {
-    "eval": "(()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()",
+    "eval": "(async()=>{for(let i=0;i<100&&(view.x!==goal.x||view.y!==goal.y||view.s!==goal.s);i++)await new Promise(r=>setTimeout(r,30));return (()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()})()",
     "expect": [
       true,
       true,
@@ -62,7 +62,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -116,7 +116,7 @@
     ]
   },
   {
-    "eval": "(()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()",
+    "eval": "(async()=>{for(let i=0;i<100&&(view.x!==goal.x||view.y!==goal.y||view.s!==goal.s);i++)await new Promise(r=>setTimeout(r,30));return (()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()})()",
     "expect": [
       true,
       true,
@@ -129,7 +129,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -206,7 +206,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -229,7 +229,7 @@
     ]
   },
   {
-    "eval": "(()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()",
+    "eval": "(async()=>{for(let i=0;i<100&&(view.x!==goal.x||view.y!==goal.y||view.s!==goal.s);i++)await new Promise(r=>setTimeout(r,30));return (()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()})()",
     "expect": [
       true,
       true,
@@ -242,7 +242,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -253,7 +253,7 @@
     "after": 650
   },
   {
-    "eval": "[ordersState.order,document.body.dataset.mode,ordersState.open,document.querySelector('#orders-sentence')===null,document.querySelector('#orders-guide').hidden,document.querySelector('#orders-hint').hidden,document.querySelector('#orders-checks small').textContent.startsWith('Locked'),document.querySelector('#orders-card header').hasAttribute('data-orders-plate')]",
+    "eval": "[ordersState.order,document.body.dataset.mode,ordersState.open,document.querySelector('#orders-sentence')===null,document.querySelector('#orders-guide').hidden,document.querySelector('.hint').hidden,document.querySelector('#orders-checks small').textContent.startsWith('Locked'),document.querySelector('#orders-card header').hasAttribute('data-orders-plate')]",
     "expect": [
       {
         "state": "open",
@@ -280,7 +280,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -303,7 +303,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -387,7 +387,7 @@
     ]
   },
   {
-    "eval": "(()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()",
+    "eval": "(async()=>{for(let i=0;i<100&&(view.x!==goal.x||view.y!==goal.y||view.s!==goal.s);i++)await new Promise(r=>setTimeout(r,30));return (()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()})()",
     "expect": [
       true,
       true,
@@ -400,7 +400,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -421,7 +421,7 @@
     ]
   },
   {
-    "eval": "(()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()",
+    "eval": "(async()=>{for(let i=0;i<100&&(view.x!==goal.x||view.y!==goal.y||view.s!==goal.s);i++)await new Promise(r=>setTimeout(r,30));return (()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()})()",
     "expect": [
       true,
       true,
@@ -456,7 +456,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -475,7 +475,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -530,7 +530,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -582,7 +582,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -646,7 +646,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -698,7 +698,7 @@
     ]
   },
   {
-    "eval": "(()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()",
+    "eval": "(async()=>{for(let i=0;i<100&&(view.x!==goal.x||view.y!==goal.y||view.s!==goal.s);i++)await new Promise(r=>setTimeout(r,30));return (()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()})()",
     "expect": [
       true,
       true,
@@ -711,11 +711,11 @@
     ]
   },
   {
-    "eval": "(()=>{const r=document.querySelector('#orders-hint').getBoundingClientRect();return [...document.querySelectorAll('.chip')].filter(e=>getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity)>0).every(e=>{const q=e.getBoundingClientRect();return r.right<=q.left||r.left>=q.right||r.bottom<=q.top||r.top>=q.bottom})})()",
+    "eval": "(()=>{const r=document.querySelector('.hint').getBoundingClientRect();return [...document.querySelectorAll('.chip')].filter(e=>getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity)>0).every(e=>{const q=e.getBoundingClientRect();return r.right<=q.left||r.left>=q.right||r.bottom<=q.top||r.top>=q.bottom})})()",
     "expect": true
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -978,7 +978,7 @@
     ]
   },
   {
-    "eval": "(()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()",
+    "eval": "(async()=>{for(let i=0;i<100&&(view.x!==goal.x||view.y!==goal.y||view.s!==goal.s);i++)await new Promise(r=>setTimeout(r,30));return (()=>{const c=document.querySelector('#orders-card').getBoundingClientRect(),p=ordersPoint(selected,ordersState.open==='question');return [c.left>=0,c.top>=100,c.right<=innerWidth,c.bottom<=innerHeight-40,p[0]>=100,p[0]<c.left-100,p[1]>=160,p[1]<=innerHeight-100]})()})()",
     "expect": [
       true,
       true,
@@ -991,7 +991,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {

@@ -494,7 +494,6 @@ export default {
 body:not([data-concept=bench]) #benchLayer{display:none}
 body[data-concept=bench] *:not(.bench-ink),body[data-concept=bench] *::before,body[data-concept=bench] *::after{transition:none!important;animation:none!important}
 body[data-concept=bench] .pins{display:none!important}
-body[data-concept=bench] .hint{opacity:1!important;z-index:45;background:#101110;border:1px solid var(--line);padding:5px 12px;border-radius:6px;top:62px}
 body[data-concept=bench] .chip[data-id=breaker]{display:none}
 body[data-concept=bench]:not([data-mode=live]) #benchLayer{display:none}
 body[data-concept=bench]:not([data-mode=live]) .ent[data-kind=benchRig],body[data-concept=bench]:not([data-mode=live]) .ent[data-kind=benchZone]{display:none}
@@ -570,7 +569,7 @@ body[data-concept=bench] #benchWaiting{font:10px var(--mono);margin-left:auto;co
 .bench-design[data-set=true]{color:#e6cb96}
 @keyframes bench-ink{from{clip-path:inset(100% 0 0)}to{clip-path:inset(0)}}
 .bench-ink{animation:bench-ink .5s ease-out!important}
-.bench-card{position:absolute;left:24px;top:108px;width:466px;max-height:calc(100vh - 300px);overflow:auto;padding:12px 16px;border:1px solid #c9a45c60;border-radius:13px;background:#161715;box-shadow:var(--shadow);pointer-events:auto;scrollbar-width:thin;scrollbar-color:#555 transparent}
+.bench-card{position:absolute;left:var(--inset);top:var(--below);width:466px;max-height:calc(100vh - 300px);overflow:auto;padding:12px 16px;border:1px solid #c9a45c60;border-radius:13px;background:#161715;box-shadow:var(--shadow);pointer-events:auto;scrollbar-width:thin;scrollbar-color:#555 transparent}
 .bench-card:focus{outline:none}
 .bench-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .bench-icon{display:grid;place-items:center;width:26px;height:26px;background:#c9a45c;color:#18140d;border-radius:7px;font:16px var(--mono);flex:none}

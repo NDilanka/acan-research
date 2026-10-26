@@ -5,6 +5,7 @@ import { ASSETS } from "../assets.mjs";
 import { renderScene, projectionFor, layoutCallouts, calloutHtml } from "../scene.mjs";
 
 const AZ = 35, EL = 35;
+const LOGO = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.1"><circle cx="12" cy="12" r="10.5" opacity=".45"/><circle cx="12" cy="12" r="6.5" opacity=".7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><circle cx="18.5" cy="12" r="1.4" fill="currentColor"/><circle cx="4.6" cy="7.6" r="1" fill="currentColor"/></svg>`;
 const BOUND = { "acquit:verifier": "verifier", "acquit:OTLP boundary": "otlp", "acan:receiver": "receiver", "kvarm:train": "train", "format:reference validator": "validator", "site:static waitlist": "preview" };
 const bindingKey = (plant, name) => BOUND[plant + ":" + name] || plant + ":" + name;
 const entityId = (plant, name) => (plant.ids && plant.ids[name]) || name;
@@ -76,6 +77,7 @@ function worldMount(D, art) {
   if (!conceptActive("world")) return;
   const root = document.querySelector("#worldApp");
   document.body.dataset.world = "active";
+  for (const el of document.body.children) if (el.id !== "worldApp" && el.tagName !== "SCRIPT") el.inert = true;
   document.title = "Acan · My world";
   const q = s => root.querySelector(s), all = s => [...root.querySelectorAll(s)];
   const esc = v => String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -84,7 +86,8 @@ function worldMount(D, art) {
   const number = id => String(D.plants.findIndex(p => p.id === id) + 1).padStart(2, "0");
   const entity = (p, name) => (p.ids && p.ids[name]) || name;
   const bindingOf = (plant, name) => D.machineBindings[plant + ":" + name] || plant + ":" + name;
-  const COL = { left: 1186, top: 128, bottom: 852 }, STAGE = { w: 1100, h: 620, top: 128 };
+  const { inset: INSET, gap: GAP, slot: SLOT, below: BELOW, card: CARD } = SHELL, STAGE = { w: 1100, h: 620 };
+  let stageBox = { left: 0, top: 0, k: 1 };
   const RANK = { "blocks publication": 3, question: 2, "recommended hold": 1 };
   const KIND = { "blocks publication": { glyph: "✕", one: "blocks publication", many: "block publication" }, question: { glyph: "?", one: "question", many: "questions" }, "recommended hold": { glyph: "◇", one: "recommended hold", many: "recommended holds" } };
   const loaded = performance.now(), kvStart = params.get("kv") || "ok";
@@ -93,7 +96,7 @@ function worldMount(D, art) {
     camera: { x: 0, y: 0, s: 1 }, history: { i: 0, n: 1 }, bookmarks: [], queueOpen: false, queue: [...D.queue], fresh: [],
     kvarm: { state: kvStart, pending: [], sent: false, checked: false, contact: loaded - ({ ok: 8, stale: 31, offline: 40 }[kvStart] ?? 8) * 1000 },
     egressBytes: 0, network: [], sites: Object.fromEntries(D.plants.map(p => [p.id, [p.x, p.y]])), bindings: structuredClone(D.bindings), belts: true,
-    appearance: params.get("theme") || "system", theme: "dark", overlay: null, question: null, contract: null, arrival: false
+    appearance: params.get("appearance") || params.get("theme") || "dark", theme: "dark", overlay: null, question: null, contract: null, arrival: false
   };
   let drag = null, alt = false, searchIndex = 0, searchResults = [], opener = null, underSearch = null, announceTimer = 0, stageCache = "", cardCache = "";
   const wheel = { sum: 0, last: -1e9, locked: false };
@@ -110,16 +113,31 @@ function worldMount(D, art) {
     b.reason = state.kvarm.state === "offline" ? "Disconnected. Last authenticated value, not current." : "Two missed polls. Last authenticated value, not current.";
   }
   history.replaceState({ world: true, index: 0, view: current() }, "");
-  function announce(text) {
+  // An agent event never overwrites the message for the user's own last action. It waits until that message clears.
+  let announceNext = null;
+  function announce(text, agent) {
     const el = q("#worldAnnouncement");
+    if (agent && el.textContent) { announceNext = text; return; }
     el.textContent = text; clearTimeout(announceTimer);
-    announceTimer = setTimeout(() => { el.textContent = ""; }, 2600);
+    announceTimer = setTimeout(() => { el.textContent = ""; const next = announceNext; announceNext = null; if (next) announce(next); }, 2600);
   }
+  // The scripted arrival counts from the first input, so it lands while the user works and never races page load.
+  // Registered before the key handlers below, because they stop propagation.
+  const arrive = () => {
+    removeEventListener("keydown", arrive, true); removeEventListener("pointerdown", arrive, true);
+    setTimeout(() => {
+      state.queue.push(D.arrival); state.fresh.push(D.arrival.id); state.arrival = true;
+      paint();
+      announce("acan-site needs an artifact check. Added to Waiting on you. Your view has not moved.", true);
+    }, 3000);
+  };
+  addEventListener("keydown", arrive, true); addEventListener("pointerdown", arrive, true);
   function appearance(value) {
     state.appearance = value;
     state.theme = value === "system" ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : value;
     root.dataset.theme = state.theme;
     document.body.dataset.worldTheme = state.theme;
+    document.body.dataset.appearance = state.theme;
     all(".iso").forEach(e => e.dataset.theme = state.theme);
     q("#worldAppearance").value = value;
   }
@@ -174,13 +192,19 @@ function worldMount(D, art) {
     return attrs ? el.tagName.toLowerCase() + attrs : null;
   }
   const column = () => state.overlay === "network" ? "network" : state.queueOpen ? "queue" : state.selection && state.level !== "world" ? "inspector" : null;
+  // The queue opens from its island at bottom left; every other card takes the right card slot.
+  function freeRect() {
+    const c = column();
+    return { left: c === "queue" ? INSET + CARD + GAP : INSET, right: innerWidth - (c && c !== "queue" ? INSET + CARD + GAP : INSET), top: BELOW, bottom: innerHeight - SLOT };
+  }
   function worldTransform() {
-    const c = state.camera;
-    if (!column()) return `translate(${c.x}px,${c.y}px) scale(${c.s})`;
+    const c = state.camera, f = freeRect();
     const xs = D.plants.map(p => p.x), ys = D.plants.map(p => p.y);
     const x0 = Math.min(...xs) - 160, x1 = Math.max(...xs) + 170, y0 = Math.min(...ys) - 118, y1 = Math.max(...ys) + 118;
-    const s = Math.min(1, (COL.left - 40) / (x1 - x0), (800 - 110) / (y1 - y0));
-    return `translate(${Math.round(20 - x0 * s)}px,${Math.round(Math.max(0, 110 - y0 * s))}px) scale(${s})`;
+    if (!column() && x0 >= f.left && x1 <= f.right && y0 >= f.top && y1 <= f.bottom) return `translate(${c.x}px,${c.y}px) scale(${c.s})`;
+    const s = Math.min(1, (f.right - f.left) / (x1 - x0), (f.bottom - f.top) / (y1 - y0));
+    const tx = Math.round(f.left + (f.right - f.left - (x1 - x0) * s) / 2 - x0 * s), ty = Math.round(f.top + (f.bottom - f.top - (y1 - y0) * s) / 2 - y0 * s);
+    return column() ? `translate(${tx}px,${ty}px) scale(${s})` : `translate(${tx + c.x}px,${ty + c.y}px) scale(${s * c.s})`;
   }
   function siteHtml(p) {
     const rows = rowsOf(p.id), w = worst(rows), fresh = rows.some(r => state.fresh.includes(r.id));
@@ -255,7 +279,9 @@ function worldMount(D, art) {
     const el = q("#worldStage");
     el.hidden = state.level === "world";
     if (el.hidden) return;
-    el.style.left = (column() ? Math.round(20 + Math.max(0, (COL.left - 40 - STAGE.w) / 2)) : Math.round((innerWidth - STAGE.w) / 2)) + "px";
+    const f = freeRect(), k = Math.min(1, (f.right - f.left) / STAGE.w, (f.bottom - f.top) / STAGE.h);
+    stageBox = { left: Math.round(f.left + (f.right - f.left - STAGE.w * k) / 2), top: Math.round(f.top + (f.bottom - f.top - STAGE.h * k) / 2), k };
+    el.style.left = stageBox.left + "px"; el.style.top = stageBox.top + "px"; el.style.transform = k < 1 ? "scale(" + k + ")" : "";
     const html = stageHtml(plants[state.focus]);
     if (html !== stageCache) { el.innerHTML = html; stageCache = html; declutter(el); }
   }
@@ -268,17 +294,16 @@ function worldMount(D, art) {
   })();
   const shifted = (r, dx, dy) => ({ left: r.left + dx, right: r.right + dx, top: r.top + dy, bottom: r.bottom + dy });
   function placeEdges(el, placed) {
-    const box = el.getBoundingClientRect(), pad = 8;
+    const box = el.getBoundingClientRect(), pad = 8, k = box.width / STAGE.w;
     const inside = r => r.left >= box.left + pad && r.right <= box.right - pad && r.top >= box.top + pad && r.bottom <= box.bottom - pad;
     for (const e of el.querySelectorAll(".world-edge")) {
       e.style.translate = "";
       const r0 = e.getBoundingClientRect(), along = e.dataset.side === "left" || e.dataset.side === "right";
       const cost = ([dx, dy]) => along ? Math.abs(dx) * 4 + Math.abs(dy) : Math.abs(dx) + Math.abs(dy) * 4;
-      const best = OFFSETS.filter(([dx, dy]) => { const r = shifted(r0, dx, dy); return inside(r) && !placed.some(p => overlaps(p, r)); }).sort((a, b) => cost(a) - cost(b))[0] || [0, 0];
+      const best = OFFSETS.filter(([dx, dy]) => { const r = shifted(r0, dx * k, dy * k); return inside(r) && !placed.some(p => overlaps(p, r)); }).sort((a, b) => cost(a) - cost(b))[0] || [0, 0];
       e.style.translate = `${best[0]}px ${best[1]}px`;
-      placed.push(shifted(r0, best[0], best[1]));
+      placed.push(shifted(r0, best[0] * k, best[1] * k));
     }
-    const k = box.width / STAGE.w;
     for (const path of el.querySelectorAll(".world-connectors path")) {
       const b = el.querySelector(`.world-edge-contract[data-contract="${path.dataset.line}"]`);
       if (!b) continue;
@@ -348,8 +373,7 @@ function worldMount(D, art) {
   }
   function stageAnchor(name) {
     const p = plants[state.focus], pt = art.stage[p.id].anchors[entity(p, name)];
-    const left = parseFloat(q("#worldStage").style.left) || 0;
-    return pt ? [left + pt[0], STAGE.top + pt[1]] : null;
+    return pt ? [stageBox.left + pt[0] * stageBox.k, stageBox.top + pt[1] * stageBox.k] : null;
   }
   function card() {
     const el = q("#worldCard");
@@ -370,8 +394,8 @@ function worldMount(D, art) {
     state.overlay = "provenance"; state.provenance = id;
     const b = state.bindings[id], el = q("#worldProvenance"), box = anchor?.getBoundingClientRect();
     el.innerHTML = `<header><span class="world-eyebrow">Binding / ${esc(b.sourceClass)}</span><button data-close="overlay" aria-label="Close provenance">×</button></header><h2>${esc(b.entity)}</h2><p id="worldProvenanceText">${esc(bindText(b))}</p><dl><dt>Channel</dt><dd>${esc(b.channel)}</dd><dt>State</dt><dd>${esc(b.state)}</dd><dt>Freshness</dt><dd>${b.age === null ? "unknown" : b.age + " s"} · ${esc(b.policy)}</dd></dl>`;
-    el.style.left = Math.max(24, Math.min(innerWidth - 510, box ? box.left - 200 : 700)) + "px";
-    el.style.top = Math.max(120, Math.min(innerHeight - 360, box ? box.bottom + 12 : 380)) + "px";
+    el.style.left = Math.max(INSET, Math.min(innerWidth - 480 - INSET, box ? box.left - 200 : 700)) + "px";
+    el.style.top = Math.max(BELOW, Math.min(innerHeight - 360, box ? box.bottom + 12 : 380)) + "px";
     layers();
   }
   function pill() {
@@ -432,6 +456,8 @@ function worldMount(D, art) {
     if (state.overlay === "states") q("#worldStatesList").innerHTML = D.plants.map(p => `<button data-provenance="${p.binding}">${stateMark(p.binding, true)}<p>${esc(state.bindings[p.binding].meaning)}</p><small>${esc(state.bindings[p.binding].locator).replaceAll("/", "/<wbr>")}</small></button>`).join("");
     q("#worldBookmarksBody").innerHTML = state.bookmarks.length ? state.bookmarks.map((b, i) => `<button class="world-action" data-recall="${i}">${esc(b.label)}<kbd>⇧ ${i + 1}</kbd></button>`).join("") : "<p>Mark a place with M. Nothing moves until you recall it.</p>";
     q("#worldBookmarksFull").hidden = state.bookmarks.length < 4;
+    q("#worldLayers").classList.toggle("open", state.overlay === "layers");
+    q("#worldLayersBtn").setAttribute("aria-expanded", state.overlay === "layers");
   }
   function minimap() {
     q("#worldMinimap").hidden = !!column();
@@ -567,6 +593,7 @@ function worldMount(D, art) {
   const hot = (plant, on) => { const s = q(`[data-world-site="${plant}"]`); if (s) s.classList.toggle("world-hot", on); };
   root.addEventListener("click", e => {
     const b = e.target.closest("button");
+    if (state.overlay === "layers" && !e.target.closest("#worldLayers,[data-action=layers]")) { state.overlay = null; if (!b) { paint(); return; } }
     if (!b) return;
     if (b.dataset.plant) goPlant(b.dataset.plant);
     else if (b.dataset.worldEndpoint) openContract(b.dataset.worldEndpoint, b.dataset.endpointPlant);
@@ -592,7 +619,9 @@ function worldMount(D, art) {
       q(`[data-queue="${state.fresh[0]}"]`)?.scrollIntoView({ block: "nearest" }); queue();
     } else {
       const a = b.dataset.action;
+      if ((a === "world" || a === "fit") && state.overlay === "layers") state.overlay = null;
       if (a === "search") openSearch();
+      if (a === "layers") { state.overlay = state.overlay === "layers" ? null : "layers"; paint(); }
       if (a === "queue") openQueue();
       if (a === "back") { save(); history.back(); }
       if (a === "forward") { save(); history.forward(); }
@@ -671,6 +700,7 @@ function worldMount(D, art) {
     if (key === "p") { eat(); if (e.shiftKey) navigate(worldView()); else if (state.focus) goPlant(state.focus); }
     if (key === "m") { eat(); bookmark(); }
     if (key === "x") { eat(); cutaway(); }
+    if (key === "l") { eat(); state.overlay = state.overlay === "layers" ? null : "layers"; paint(); }
     if (!e.shiftKey && ["1", "2", "3", "4"].includes(e.key) && state.focus) { eat(); state.mode = ["live", "blueprint", "simulate", "replay"][+e.key - 1]; setMode(state.mode); paint(); }
   }, { capture: true });
   addEventListener("keyup", e => { if (e.key === "Alt") { alt = false; root.classList.remove("world-alt"); } });
@@ -722,12 +752,8 @@ function worldMount(D, art) {
   }).join("");
   q("#worldMapSites").innerHTML = D.plants.map(p => `<button style="left:${p.x / 10}px;top:${p.y / 10}px" data-map="${p.id}" title="${esc(p.name)}">${esc(p.id === "format" ? "format" : p.id === "site" ? "site" : p.name)}</button>`).join("");
   appearance(state.appearance); paint();
+  addEventListener("resize", () => { stageCache = ""; paint(); });
   setInterval(() => { if (state.kvarm.state !== "ok") paint(); }, 5000);
-  setTimeout(() => {
-    state.queue.push(D.arrival); state.fresh.push(D.arrival.id); state.arrival = true;
-    paint();
-    announce("acan-site needs an artifact check. Added to Waiting on you. Your view has not moved.");
-  }, 3000);
 }
 export { worldArt };
 export default {
@@ -741,21 +767,30 @@ export default {
     <pattern id="worldFogHatch" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="var(--w-shell)"/><path d="M-1 1L1 -1M0 6L6 0M5 7L7 5" stroke="var(--w-line2)" stroke-width=".6"/></pattern>
     <pattern id="worldSimGrid" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="var(--w-shell)"/><path d="M0 .2H5M.2 0V5" stroke="var(--w-blue)" stroke-width=".5" opacity=".75"/></pattern>
   </defs></svg>
-  <header class="world-topbar">
-    <div class="world-brand"><span class="world-logo">◎</span><b>Acan</b><span class="world-divider"></span><button data-action="world">My world</button><span class="world-slash">/</span><span id="worldBreadcrumb">My world</span><small id="worldScope"></small></div>
-    <button class="world-jump" data-action="search"><span>⌕</span> Jump to a place, machine, or decision <kbd>Ctrl K</kbd></button>
-    <div class="world-window-tools"><label class="world-appearance-label">Appearance<select id="worldAppearance" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><button id="worldEgress" data-action="network"></button></div>
-  </header>
-  <nav class="world-toolbar" aria-label="World navigation"><button id="worldBack" data-action="back" title="Back · Alt Left" aria-label="Back">←</button><button id="worldForward" data-action="forward" title="Forward · Alt Right" aria-label="Forward">→</button><span></span><button data-action="world">Fit world <kbd>⇧ P</kbd></button><button id="worldFitPlant" data-action="fit">Fit plant <kbd>P</kbd></button><button id="worldBeltToggle" data-action="belts" aria-pressed="true">Contracts <kbd>V</kbd></button><span></span><button data-action="states">Evidence states <span class="world-legend">? ◷ 0 ⏻ SIM</span></button><button data-action="mark">Mark place <kbd>M</kbd></button><button data-action="bookmarks">Bookmarks <span id="worldBookmarksCount"></span></button></nav>
-  <div id="worldCanvas" tabindex="-1" aria-label="Canvas of five stable plant sites"><div class="world-drafting-grid"></div><div id="worldViewport"><svg id="worldRoutes" viewBox="0 0 1600 900"></svg><div id="worldPorts"></div><div id="worldSites"></div></div></div>
-  <section id="worldStage" aria-label="Focused plant" hidden></section>
-  <div class="world-bottom-left"><button class="world-waiting-button" data-action="queue" aria-pressed="false"><span class="world-amber-dot"></span>Waiting on you <b id="worldQueueCount">5</b><span id="worldQueueFresh" class="world-new" hidden></span><kbd>U</kbd></button><button id="worldKvarm" data-action="network" title="Kvarm connection · opens the network log"></button></div>
-  <aside id="worldMinimap"><header><span>Stable sites</span><span>N ↑</span></header><div id="worldMapSites"></div><div id="worldMapView"></div></aside>
-  <footer class="world-footer"><span><b id="worldLevel">world</b> · read only · no activity animation</span><span class="world-footer-center"><span id="worldAnnouncement" role="status" aria-live="polite"></span><span class="world-footer-hints">U waiting · I next · Ctrl K jump · Alt 1–5 plants · Alt ← / → back / forward · F8 appearance</span></span><span class="world-fixture">Scripted evidence · no network</span></footer>
-  <nav class="world-local-modes" aria-label="Focused plant mode"><span>Focused plant only</span><button data-world-mode="live">Live <kbd>1</kbd></button><button data-world-mode="blueprint">Blueprint <kbd>2</kbd></button><button data-world-mode="simulate">Simulate <kbd>3</kbd></button><button data-world-mode="replay">Replay <kbd>4</kbd></button></nav>
-  <section id="worldQueue" class="world-panel world-column" hidden><header><div><span class="world-eyebrow">One human review allowance</span><h2>Waiting on you <span id="worldQueueTitleCount">5</span></h2></div><button data-close="queue" aria-label="Close Waiting on you">×</button></header><p class="world-queue-intro">Kvarm enforces publication rules. Recommended holds do not prevent self-claim.</p><div id="worldQueueRows"></div><button id="worldQueueBelow" class="world-queue-below" hidden></button></section>
+  <div id="worldCanvas" data-stage tabindex="-1" aria-label="Canvas of five stable plant sites"><div class="world-drafting-grid"></div><div id="worldViewport"><svg id="worldRoutes" viewBox="0 0 1600 900"></svg><div id="worldPorts"></div><div id="worldSites"></div></div></div>
+  <section id="worldStage" data-stage aria-label="Focused plant" hidden></section>
+  <div class="fl tl world-tl"><span class="b brand">${LOGO}Acan</span><span class="sep"></span><button class="b" id="worldBack" data-action="back" title="Back · Alt Left" aria-label="Back">←</button><button class="b" id="worldForward" data-action="forward" title="Forward · Alt Right" aria-label="Forward">→</button><span class="sep"></span><span class="world-crumbs"><button class="b" data-action="world">My world</button><span class="world-slash">/</span><span id="worldBreadcrumb">My world</span></span><span class="sep"></span><button class="b" data-action="search">Go to <kbd>Ctrl K</kbd></button></div>
+  <nav class="fl tc world-modes" aria-label="Focused plant mode"><span class="world-modes-label">Focused plant only</span><div class="modes"><button data-world-mode="live">Live <kbd>1</kbd></button><button data-world-mode="blueprint">Blueprint <kbd>2</kbd></button><button data-world-mode="simulate">Simulate <kbd>3</kbd></button><button data-world-mode="replay">Replay <kbd>4</kbd></button></div></nav>
+  <div class="fl tr world-tr"><button class="b" id="worldLayersBtn" data-action="layers" aria-expanded="false">Layers <kbd>L</kbd></button><button class="egress" id="worldEgress" data-action="network"></button></div>
+  <div class="pop" id="worldLayers" aria-label="Layers">
+    <h4>Layers</h4>
+    <button class="world-pop-row" id="worldBeltToggle" data-action="belts" aria-pressed="true">Contracts <span class="world-pop-end"><kbd>V</kbd><span class="sw"></span></span></button>
+    <button class="world-pop-row" data-action="states">Evidence states <span class="world-legend">? ◷ 0 ⏻ SIM</span></button>
+    <h4>View</h4>
+    <button class="world-pop-row" data-action="world">Fit world <kbd>⇧ P</kbd></button>
+    <button class="world-pop-row" id="worldFitPlant" data-action="fit">Fit plant <kbd>P</kbd></button>
+    <button class="world-pop-row" data-action="mark">Mark place <kbd>M</kbd></button>
+    <button class="world-pop-row" data-action="bookmarks">Bookmarks <span id="worldBookmarksCount"></span></button>
+    <label class="world-pop-row">Appearance <span class="world-pop-end"><kbd>F8</kbd><select id="worldAppearance" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></span></label>
+  </div>
+  <div class="fl bl world-bl"><button class="wait world-waiting-button" data-action="queue" aria-pressed="false"><span class="dot world-amber-dot"></span>Waiting on you <b id="worldQueueCount">5</b><span id="worldQueueFresh" class="world-new" hidden></span><kbd>U</kbd></button></div>
+  <div class="fl br world-br"><span class="live"><b id="worldLevel">world</b><span class="world-br-note"> · read only · no activity animation</span></span><span class="sep"></span><span class="readout" id="worldScope"></span><span class="sep"></span><span class="motion world-fixture">Scripted evidence · no network</span><span class="sep"></span><button class="egress" id="worldKvarm" data-action="network" title="Kvarm connection · opens the network log"></button></div>
+  <div class="hint world-hint">U waiting · I next · Ctrl K jump · Alt 1–5 plants · Alt ← / → back / forward · L layers · F8 appearance</div>
+  <div class="toast world-toast" id="worldAnnouncement" role="status" aria-live="polite"></div>
+  <aside id="worldMinimap" data-nav-slot><header><span>Stable sites</span><span>N ↑</span></header><div id="worldMapSites"></div><div id="worldMapView"></div></aside>
+  <section id="worldQueue" class="world-panel world-card-slot" hidden><header><div><span class="world-eyebrow">One human review allowance</span><h2>Waiting on you <span id="worldQueueTitleCount">5</span></h2></div><button data-close="queue" aria-label="Close Waiting on you">×</button></header><p class="world-queue-intro">Kvarm enforces publication rules. Recommended holds do not prevent self-claim.</p><div id="worldQueueRows"></div><button id="worldQueueBelow" class="world-queue-below" hidden></button></section>
   <div id="worldStack" hidden><section id="worldCard" class="world-panel" hidden></section><aside id="worldInspector" class="world-panel" hidden></aside></div>
-  <section id="worldNetwork" class="world-panel world-column" tabindex="-1" hidden><header><span class="world-eyebrow">Declared egress / your connection</span><button data-close="overlay" aria-label="Close network log">×</button></header><div id="worldNetworkBody"></div></section>
+  <section id="worldNetwork" class="world-panel world-card-slot" tabindex="-1" hidden><header><span class="world-eyebrow">Declared egress / your connection</span><button data-close="overlay" aria-label="Close network log">×</button></header><div id="worldNetworkBody"></div></section>
   <section id="worldPalette" class="world-panel" role="dialog" aria-modal="true" aria-label="Global jump" hidden><header><span class="world-eyebrow">Jump anywhere / all plants</span><button data-close="overlay" aria-label="Close global jump">×</button></header><div class="world-search-field"><span>⌕</span><input id="worldSearch" placeholder="Plant, machine, contract, decision, or command" autocomplete="off"></div><div id="worldResults"></div><footer>↑ ↓ choose · Tab moves within · Enter jump · Esc dismisses without moving</footer></section>
   <section id="worldStates" class="world-panel" hidden><header><div><span class="world-eyebrow">Evidence, not activity</span><h2>Five states. Five different meanings.</h2></div><button data-close="overlay" aria-label="Close evidence states">×</button></header><p>Missing is not zero. A stopped process is not missing telemetry.</p><div id="worldStatesList"></div><footer>Each mark opens the exact binding that draws it. Failure and fog may coexist.</footer></section>
   <section id="worldProvenance" class="world-panel" hidden></section>
@@ -770,17 +805,16 @@ body[data-world=active] *{animation:none!important;transition:none!important}
 #worldApp{--ok:var(--w-ok);--strain:var(--w-wait);--wait:var(--w-wait);--fail:var(--w-fail);--idle:var(--w-faint);--ghost:var(--w-blue);--text:var(--w-ink);--dim:var(--w-dim);--faint:var(--w-faint);--glass:var(--w-panel);--line:var(--w-line);--line2:var(--w-line2)}
 body[data-world=active] #worldApp{display:block}
 #worldApp[data-theme=light]{--w-paper:#F4F1EA;--w-grid:#E5E0D5;--w-major:#D6CFBF;--w-ink:#24282D;--w-dim:#50575E;--w-faint:#60656B;--w-line:#D4CFC3;--w-line2:#BDB5A5;--w-panel:#FCFAF5;--w-top:#F8F5ED;--w-accent:#795A27;--w-brass-fill:#E1D1AA;--w-ok:#17685D;--w-wait:#805400;--w-fail:#AC392B;--w-fail-fill:#F6E1DC;--w-blue:#28658B;--w-shell:#EEEBE3;--w-shadow:0 8px 24px #29251F14,0 1px 3px #29251F0D}
-#worldApp[data-theme=light][data-mode=blueprint] :is(.world-focused,#worldStage){--w-mode-paper:#EDF3F8}
-#worldApp[data-theme=light][data-mode=simulate] :is(.world-focused,#worldStage){--w-mode-paper:#F0F4EE}
-#worldApp[data-theme=light][data-mode=replay] :is(.world-focused,#worldStage){--w-mode-paper:#F5ECDC}
-#worldApp[data-theme=dark][data-mode=blueprint] :is(.world-focused,#worldStage){--w-mode-paper:#0F2136}
-#worldApp[data-theme=dark][data-mode=simulate] :is(.world-focused,#worldStage){--w-mode-paper:#141B17}
-#worldApp[data-theme=dark][data-mode=replay] :is(.world-focused,#worldStage){--w-mode-paper:#1B160F}
+#worldApp[data-theme=light][data-mode=blueprint],#worldApp[data-theme=light][data-mode=blueprint] .world-focused{--w-mode-paper:#EDF3F8}
+#worldApp[data-theme=light][data-mode=simulate],#worldApp[data-theme=light][data-mode=simulate] .world-focused{--w-mode-paper:#F0F4EE}
+#worldApp[data-theme=light][data-mode=replay],#worldApp[data-theme=light][data-mode=replay] .world-focused{--w-mode-paper:#F5ECDC}
+#worldApp[data-theme=dark][data-mode=blueprint],#worldApp[data-theme=dark][data-mode=blueprint] .world-focused{--w-mode-paper:#0F2136}
+#worldApp[data-theme=dark][data-mode=simulate],#worldApp[data-theme=dark][data-mode=simulate] .world-focused{--w-mode-paper:#141B17}
+#worldApp[data-theme=dark][data-mode=replay],#worldApp[data-theme=dark][data-mode=replay] .world-focused{--w-mode-paper:#1B160F}
 #worldApp [hidden]{display:none!important}
 #worldApp .world-defs{position:absolute;width:0;height:0}
 #worldApp button{color:inherit;line-height:inherit}
 #worldApp button:hover{color:var(--w-accent)}
-#worldApp button:focus-visible,#worldApp input:focus-visible,#worldApp select:focus-visible,#worldApp [tabindex]:focus-visible{outline:2px solid var(--w-accent);outline-offset:3px}
 #worldApp button:disabled{opacity:.35;cursor:default}
 #worldApp kbd{color:var(--w-dim);border-color:var(--w-line2);font-size:11px;white-space:nowrap}
 #worldApp h2{font-size:20px;line-height:1.3;letter-spacing:-.035em;font-weight:550;margin:8px 0 10px}
@@ -788,30 +822,8 @@ body[data-world=active] #worldApp{display:block}
 #worldApp p{margin:8px 0 14px;color:var(--w-dim)}
 #worldApp small{font:11px/1.5 var(--mono);color:var(--w-dim)}
 #worldApp .world-eyebrow{font:11px/1.5 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--w-accent)}
-#worldApp .world-topbar{position:absolute;z-index:25;left:0;right:0;top:0;height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--w-line);background:var(--w-paper);gap:24px}
-#worldApp .world-brand{display:flex;align-items:center;gap:12px;white-space:nowrap;position:relative;min-width:420px;font-size:13px}
-#worldApp .world-brand>b{font-size:15px;letter-spacing:-.03em}
-#worldApp .world-logo{font-size:28px;color:var(--w-accent);line-height:1}
-#worldApp .world-divider{width:1px;height:20px;background:var(--w-line);margin:0 3px}
-#worldApp .world-slash{color:var(--w-faint)}
-#worldApp #worldBreadcrumb{font-weight:550}
-#worldApp #worldScope{position:absolute;left:130px;top:27px;font:11px var(--mono);color:var(--w-dim)}
-#worldApp[data-level=world] .world-slash,#worldApp[data-level=world] #worldBreadcrumb{display:none}
-#worldApp .world-jump{width:350px;flex:none;display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--w-line);border-radius:7px;color:var(--w-dim);font-size:12px;background:var(--w-panel)}
-#worldApp .world-jump>span{font-size:21px;line-height:16px}
-#worldApp .world-jump kbd{margin-left:auto}
-#worldApp .world-window-tools{display:flex;align-items:center;gap:20px}
-#worldApp .world-appearance-label{display:flex;gap:7px;align-items:center;color:var(--w-dim);font-size:12px}
-#worldApp select{background:var(--w-panel);color:var(--w-ink);border:1px solid var(--w-line);border-radius:5px;padding:5px 4px;font:12px var(--sans)}
-#worldApp #worldEgress{font:11px var(--mono);color:var(--w-dim)}
-#worldApp .world-toolbar{position:absolute;right:24px;top:86px;z-index:8;display:flex;align-items:center;gap:16px;font-size:12px;white-space:nowrap}
-#worldApp .world-toolbar>span{width:1px;background:var(--w-line);height:16px}
-#worldApp .world-toolbar button{display:flex;gap:7px;align-items:center}
 #worldApp .world-legend{font:11px var(--mono);color:var(--w-dim)}
-#worldApp #worldBack,#worldApp #worldForward{font-size:18px}
-#worldApp #worldCanvas{position:absolute;inset:73px 0 40px;outline:none;overflow:hidden;touch-action:none}
 #worldApp .world-drafting-grid{position:absolute;inset:0;background-image:linear-gradient(var(--w-major) 1px,transparent 1px),linear-gradient(90deg,var(--w-major) 1px,transparent 1px),linear-gradient(var(--w-grid) 1px,transparent 1px),linear-gradient(90deg,var(--w-grid) 1px,transparent 1px);background-size:128px 128px,128px 128px,32px 32px,32px 32px;opacity:.45;mask-image:radial-gradient(ellipse at center,#0008,transparent 78%)}
-#worldApp #worldViewport{position:absolute;left:0;top:-73px;width:1600px;height:900px;transform-origin:0 0}
 #worldApp #worldRoutes{position:absolute;inset:0;width:1600px;height:900px;overflow:visible;pointer-events:none}
 #worldApp #worldPorts{position:absolute;inset:0;pointer-events:none;z-index:6}
 #worldApp .world-route-under{stroke:var(--w-paper);stroke-width:7;fill:none}
@@ -860,8 +872,6 @@ body[data-world=active] #worldApp{display:block}
 #worldApp [data-evidence-state=stopped] .world-bezel{border-radius:4px;background:var(--w-line);border-color:var(--w-dim)}
 #worldApp [data-evidence-state=simulated] .world-bezel{border-radius:3px;border-color:var(--w-blue);color:var(--w-blue);font-size:11px;background-image:linear-gradient(var(--w-line) 1px,transparent 1px),linear-gradient(90deg,var(--w-line) 1px,transparent 1px);background-size:6px 6px}
 #worldApp [data-evidence-state=valid] .world-bezel{border-color:var(--w-accent)}
-#worldApp #worldStage{position:absolute;top:128px;width:1100px;height:620px;z-index:6;border:1px solid var(--w-line);border-radius:6px;background:var(--w-mode-paper,var(--w-paper))}
-#worldApp[data-level=cutaway] #worldStage{border-color:var(--w-accent);border-style:dashed}
 #worldApp .world-stage-art{position:absolute;inset:0;background:transparent}
 #worldApp .world-stage-art>svg{display:block;width:1100px;height:620px;overflow:visible}
 #worldApp .world-stage-art:not([data-cutaway]) .iso-face-text{display:none}
@@ -896,16 +906,6 @@ body[data-world=active] #worldApp{display:block}
 #worldApp .xl{font:11px var(--mono);color:var(--w-ink);background:var(--w-panel);border:1px solid var(--w-line);border-radius:3px}
 #worldApp .leaders path{stroke:var(--w-line2)}
 #worldApp .leaders circle{fill:var(--w-accent)}
-#worldApp .world-bottom-left{position:absolute;left:28px;bottom:52px;display:flex;gap:16px;align-items:center;z-index:12}
-#worldApp .world-waiting-button{display:flex;align-items:center;gap:10px;padding:12px 16px;border:1px solid var(--w-line2);border-radius:7px;background:var(--w-panel);box-shadow:var(--w-shadow);font-size:13px}
-#worldApp .world-waiting-button[aria-pressed=true]{border-color:var(--w-accent)}
-#worldApp .world-waiting-button b{border-radius:3px;padding:0 5px;background:var(--w-brass-fill);color:var(--w-accent);font:11px/1.6 var(--mono)}
-#worldApp .world-amber-dot{width:6px;height:6px;border-radius:50%;background:var(--w-wait)}
-#worldApp #worldKvarm{font:11px var(--mono);text-align:left;display:flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--w-line);border-radius:14px;background:var(--w-panel);color:var(--w-dim)}
-#worldApp #worldKvarm:not([data-kv=ok]){border-color:var(--w-wait);color:var(--w-wait)}
-#worldApp .world-connection-dot{width:6px;height:6px;border-radius:50%;background:var(--w-ok)}
-#worldApp .world-connection-dot:not([data-kv=ok]){background:transparent;border:1.5px solid var(--w-wait);box-sizing:border-box}
-#worldApp #worldMinimap{position:absolute;bottom:52px;right:24px;width:184px;height:139px;padding:10px 12px;box-sizing:border-box;border:1px solid var(--w-line);border-radius:6px;background:var(--w-panel);z-index:10}
 #worldApp #worldMinimap header{display:flex;justify-content:space-between;font:11px var(--mono);color:var(--w-dim)}
 #worldApp #worldMapSites{position:relative;margin-top:4px;width:160px;height:90px}
 #worldApp #worldMapSites button{position:absolute;font:11px var(--mono);transform:translate(-50%,-30%);z-index:2;color:var(--w-dim)}
@@ -915,17 +915,6 @@ body[data-world=active] #worldApp{display:block}
 #worldApp #worldMapSites [data-kind=question]::before{background:var(--w-wait);border-color:var(--w-wait)}
 #worldApp #worldMapSites [data-kind="recommended hold"]::before{border-color:var(--w-ink)}
 #worldApp #worldMapView{position:absolute;margin:30px 12px 0 12px;pointer-events:none;top:0;left:0;border:1px solid var(--w-accent);opacity:.5}
-#worldApp .world-footer{position:absolute;bottom:0;left:0;right:0;height:39px;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:0 28px;border-top:1px solid var(--w-line);font:11px var(--mono);color:var(--w-dim);background:var(--w-paper);z-index:25;white-space:nowrap}
-#worldApp .world-footer b{color:var(--w-accent);text-transform:uppercase;font-weight:500}
-#worldApp .world-fixture{color:var(--w-faint)}
-#worldApp #worldAnnouncement{color:var(--w-ink)}
-#worldApp #worldAnnouncement:not(:empty)::before{content:"●";color:var(--w-accent);margin-right:8px}
-#worldApp #worldAnnouncement:not(:empty)+.world-footer-hints{display:none}
-#worldApp .world-local-modes{position:absolute;top:82px;left:28px;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid var(--w-line);border-radius:6px;background:var(--w-panel);z-index:8}
-#worldApp[data-level=world] .world-local-modes{display:none}
-#worldApp .world-local-modes>span{font-size:11px;color:var(--w-dim);padding:0 9px}
-#worldApp .world-local-modes button{padding:4px 9px;font-size:12px;border-radius:3px}
-#worldApp .world-local-modes button[aria-pressed=true]{background:var(--w-brass-fill);color:var(--w-accent)}
 #worldApp .world-panel{position:absolute;z-index:18;background:var(--w-panel);border:1px solid var(--w-line2);border-radius:9px;box-shadow:var(--w-shadow);padding:20px;box-sizing:border-box;color:var(--w-ink)}
 #worldApp .world-panel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 #worldApp .world-panel header>button{font-size:21px;line-height:18px;color:var(--w-dim);width:20px;height:24px;flex:none}
@@ -934,7 +923,6 @@ body[data-world=active] #worldApp{display:block}
 #worldApp .world-panel dl{display:grid;grid-template-columns:72px 1fr;gap:6px 10px;font:11px/1.5 var(--mono);margin:12px 0}
 #worldApp .world-panel dt{color:var(--w-faint)}
 #worldApp .world-panel dd{margin:0;overflow-wrap:anywhere}
-#worldApp .world-column{right:24px;top:128px;width:390px;max-height:724px;overflow:auto;z-index:20;font-size:12px}
 #worldApp #worldQueue{padding:16px 18px;display:flex;flex-direction:column;overflow:hidden}
 #worldApp #worldQueue>header,#worldApp .world-queue-intro{flex-shrink:0}
 #worldApp #worldQueueRows{overflow:auto;min-height:0;border-top:1px solid var(--w-line)}
@@ -968,7 +956,6 @@ body[data-world=active] #worldApp{display:block}
 #worldApp .world-bot-chip>[data-evidence=authenticated]{border-color:var(--w-accent);color:var(--w-accent)}
 #worldApp .world-action{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:9px 12px;border:1px solid var(--w-line2);border-radius:5px;width:100%;font-size:12px;margin-top:8px}
 #worldApp .world-primary{display:block;border-radius:5px;background:var(--w-brass-fill);border:1px solid var(--w-accent);color:var(--w-ink);padding:10px 13px;font-size:12px;width:100%;margin:14px 0 10px;text-align:left}
-#worldApp #worldStack{position:absolute;right:24px;top:128px;width:390px;max-height:724px;overflow:auto;z-index:20;display:flex;flex-direction:column;gap:10px;border-radius:9px}
 #worldApp #worldStack>.world-panel{position:relative;flex:none;box-shadow:none}
 #worldApp #worldInspector{font-size:12px}
 #worldApp #worldCard{font-size:12px;border-color:var(--w-accent)}
@@ -980,7 +967,6 @@ body[data-world=active] #worldApp{display:block}
 #worldApp .world-tag{display:inline-block;border:1px solid var(--w-line2);border-radius:3px;padding:2px 6px;font:11px var(--mono);color:var(--w-wait);margin:9px 0}
 #worldApp .world-readback{border-top:1px solid var(--w-line);border-bottom:1px solid var(--w-line);padding:10px 0;margin:12px 0}
 #worldApp .world-readback b{font:11px var(--mono);color:var(--w-accent)}
-#worldApp #worldPalette{top:150px;left:50%;transform:translateX(-50%);width:620px;padding:18px 0 12px;z-index:35}
 #worldApp #worldPalette>header,#worldApp #worldPalette>footer{margin:0 22px}
 #worldApp .world-search-field{display:flex;gap:14px;align-items:center;margin:14px 22px;padding:9px 0 15px;border-bottom:1px solid var(--w-line)}
 #worldApp .world-search-field>span{font-size:29px;line-height:25px;color:var(--w-accent)}
@@ -992,7 +978,6 @@ body[data-world=active] #worldApp{display:block}
 #worldApp #worldResults>button small{grid-column:1}
 #worldApp #worldResults>button>span:last-child{grid-column:2;grid-row:2;color:var(--w-accent)}
 #worldApp .world-result-active{background:var(--w-brass-fill)}
-#worldApp #worldStates{width:1040px;top:200px;left:50%;transform:translateX(-50%);z-index:24}
 #worldApp #worldStates>p{font-size:13px}
 #worldApp #worldStatesList{display:grid;grid-template-columns:repeat(5,1fr);margin-top:22px}
 #worldApp #worldStatesList>button{text-align:left;padding:15px;border-left:1px solid var(--w-line)}
@@ -1015,7 +1000,6 @@ body[data-world=active] #worldApp{display:block}
 #worldApp .world-network-row>b{font-weight:500;display:flex;justify-content:space-between}
 #worldApp .world-network-row>span{color:var(--w-dim)}
 #worldApp .world-network-row small{font:12px/1.4 var(--sans)}
-#worldApp #worldBookmarks{left:50%;transform:translateX(-50%);top:240px;width:470px;z-index:28}
 #worldApp #worldBookmarksBody{display:grid;gap:4px;margin-top:16px}
 #worldApp .iso{--anatomy-shade-0:#121617;--anatomy-shade-1:#1a2021;--anatomy-shade-2:#242c2d;--anatomy-shade-3:#303839;--anatomy-top:#353d3e;--anatomy-hi:#bdc5c5;--anatomy-mid:#7e8989;--anatomy-lo:#4b5657;--anatomy-faint:#384344;--anatomy-weight:.8px}
 #worldApp[data-theme=light] .iso{--anatomy-paper:#F2EEE4;--anatomy-face:#F8F5ED;--anatomy-top:#FCFAF5;--anatomy-shade-0:#C5C0B4;--anatomy-shade-1:#D5D0C5;--anatomy-shade-2:#E4E0D6;--anatomy-shade-3:#EEEBE3;--anatomy-lit-top:#FCFAF5;--anatomy-lit-shade:#E4E0D6;--anatomy-hi:#343A40;--anatomy-mid:#59616A;--anatomy-lo:#929187;--anatomy-faint:#CBC7BD;--anatomy-lit:#1B1F24;--anatomy-halo:#7B7465;--anatomy-halo-opacity:.12;--anatomy-dot:#795A27;--anatomy-red:#AC392B;--anatomy-green:#17685D;--anatomy-blue:#28658B;--anatomy-weight:1px}
@@ -1035,6 +1019,56 @@ body[data-world=active] #worldApp{display:block}
 #worldApp .ent[data-state=stopped]{opacity:.8}
 #worldApp .ent[data-state=sim] .iso-top{fill:url(#worldSimGrid)}
 #worldApp .ent[data-state=sim] .iso-line{stroke:var(--w-blue)}
-@media(max-width:1200px){#worldApp .world-topbar{gap:12px;padding:0 18px}#worldApp .world-brand{min-width:280px}#worldApp .world-jump{width:290px}#worldApp .world-window-tools{gap:9px}#worldApp .world-appearance-label{font-size:0}}
+#worldApp:not([data-level=world]){background:var(--w-mode-paper,var(--w-paper))}
+#worldApp #worldCanvas{position:absolute;inset:0;outline:none;overflow:hidden;touch-action:none}
+#worldApp #worldViewport{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:0 0}
+#worldApp #worldStage{position:absolute;width:1100px;height:620px;z-index:6;transform-origin:0 0;background:transparent}
+#worldApp :is(.fl,.pop) button:hover{color:var(--text)}
+#worldApp :is(.fl,.pop) kbd{color:var(--faint);border-color:var(--line2)}
+#worldApp :is(button,input,select,[tabindex]):focus-visible{outline:1.5px solid var(--w-accent);outline-offset:1px}
+#worldApp :is(.fl,.nav,.pop) :is(button,select,[tabindex]):focus-visible{outline-color:var(--focus)}
+#worldApp .world-tl{z-index:26}
+#worldApp .world-crumbs{display:flex;align-items:center;gap:2px}
+#worldApp .world-slash{color:var(--faint);padding:0 2px}
+#worldApp #worldBreadcrumb{font-size:12px;font-weight:550;color:var(--ink);padding:0 8px 0 4px;white-space:nowrap}
+#worldApp[data-level=world] .world-crumbs>:not(:first-child){display:none}
+#worldApp .world-tl button:disabled{opacity:.35}
+#worldApp .world-modes{z-index:26}
+#worldApp[data-level=world] .world-modes{display:none}
+#worldApp .world-modes-label{font-size:11px;color:var(--dim);padding:0 6px 0 8px;white-space:nowrap}
+#worldApp .world-modes .modes button[aria-pressed=true]{background:var(--press)}
+#worldApp .world-tr{z-index:26}
+#worldApp .egress{cursor:pointer;white-space:nowrap}
+#worldApp #worldKvarm:not([data-kv=ok]){border-color:var(--wait);color:var(--wait)}
+#worldApp .world-connection-dot{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+#worldApp .world-connection-dot:not([data-kv=ok]){background:transparent;border:1.5px solid var(--wait);box-sizing:border-box}
+#worldApp #worldLayers{z-index:36}
+#worldApp .world-pop-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:6px;border-radius:7px;color:var(--text);font-size:12px;text-align:left;cursor:pointer}
+#worldApp .world-pop-row:hover{background:var(--hover);color:var(--ink)}
+#worldApp .world-pop-end{display:flex;align-items:center;gap:8px}
+#worldApp .world-pop-row .world-legend{font:11px var(--mono);color:var(--faint)}
+#worldApp #worldBookmarksCount{font:11px var(--mono);color:var(--faint)}
+#worldApp .world-bl{flex-direction:row;align-items:center;gap:8px;min-width:0;z-index:26}
+#worldApp .world-bl .wait{gap:8px;padding:0 10px}
+#worldApp .world-bl .wait b{margin-left:4px}
+#worldApp .world-bl .wait kbd{margin-left:4px}
+#worldApp .world-bl .wait[aria-pressed=true]{box-shadow:inset 0 0 0 1px var(--focus)}
+#worldApp .world-amber-dot{background:var(--wait)}
+#worldApp .world-br{z-index:26;white-space:nowrap}
+#worldApp #worldLevel{text-transform:uppercase}
+#worldApp .world-br .live{color:var(--dim)}
+#worldApp .world-hint{z-index:26}
+#worldApp .world-toast{top:auto;bottom:var(--slot);transform:translateX(-50%);z-index:40;max-width:none;white-space:nowrap;transition:none}
+#worldApp .world-toast:not(:empty){opacity:1}
+#worldApp #worldMinimap{position:absolute;top:var(--slot);right:var(--inset);width:184px;height:139px;padding:10px 12px;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:var(--shadow);z-index:10;--glass:rgba(18,18,18,.7);--line:rgba(255,255,255,.08)}
+body[data-appearance=light] #worldApp #worldMinimap{--glass:rgba(252,250,245,.8);--line:rgba(36,40,45,.1)}
+#worldApp #worldMinimap[data-yield]{visibility:hidden}
+#worldApp .world-card-slot{right:var(--inset);top:var(--below);width:var(--card);max-height:calc(100vh - var(--below) - var(--slot));overflow:auto;z-index:20;font-size:12px}
+#worldApp #worldQueue{left:var(--inset);right:auto;top:auto;bottom:var(--slot);max-height:calc(100vh - var(--below) - var(--slot))}
+#worldApp #worldStack{position:absolute;right:var(--inset);top:var(--below);width:var(--card);max-height:calc(100vh - var(--below) - var(--slot));overflow:auto;z-index:20;display:flex;flex-direction:column;gap:var(--gap);border-radius:9px}
+#worldApp #worldPalette{top:var(--below);left:50%;transform:translateX(-50%);width:620px;max-width:calc(100vw - 2 * var(--inset));padding:18px 0 12px;z-index:35}
+#worldApp #worldStates{width:1040px;max-width:calc(100vw - 2 * var(--inset));top:var(--below);left:50%;transform:translateX(-50%);z-index:24}
+#worldApp #worldBookmarks{left:50%;transform:translateX(-50%);top:var(--below);width:470px;z-index:28}
+@media(max-width:1439px){#worldApp .world-br-note,#worldApp .world-modes-label{display:none}}
 `
 };

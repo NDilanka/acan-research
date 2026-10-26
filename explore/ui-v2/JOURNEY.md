@@ -10,29 +10,20 @@ The user's calls that shape it are these. An agent claims on its own after its r
 
 **Two levels, one canvas.** The world level is the world concept's canvas of five plants. Focusing Acquit eases the camera into the Acquit site, then swaps the world canvas for the ui-v1 stage, which is Acquit's real plant. The swap is instant, with no transition. The other four plants keep the world concept's own plant stage. Leaving Acquit reverses this.
 
-**Persistent chrome.** These four never unmount and never move.
-- **Waiting on you.** One queue for the whole session, as a pill in the bottom bar with its count. U opens it as the left drawer. Its count is the only waiting count on screen. The ui-v1 status panel's `.bl .wait b` shows the same number.
-- **Egress pill.** Top bar, right. It reads `local + kvarm · N B out`, where N is the sum of the session ledger (section 5). Click or Shift V opens the network log in the left drawer.
-- **Kvarm strip.** Bottom bar, after the queue pill. It shows connection state and the live lease, for example `Kvarm · git.acan.local · connected · lease g1 · Claude Code · t-41`. Click opens the network log.
-- **Appearance switch.** Top bar, before the pill, as a select with System, Light and Dark. F8 cycles System, Light, Dark. The choice is stored in `sessionStorage`, so it holds per window.
+**The island shell.** The journey runs on the one shell in `SHELL.md`. The stage draws full-bleed, and every control lives on a floating glass island. There are no bars and no docked panels. The world concept's old top bar, toolbar row, framed stage and docked inspector (`shots/world-07-levels.png`) are retired.
 
-**Top bar** (48 px). Back and forward buttons, then the breadcrumb `My world / Acquit / paypal-payouts`, then the jump field `Jump to a place, machine, or decision · Ctrl K`, then the appearance switch and the egress pill.
+**Persistent chrome.** These islands never unmount and never move. `SHELL.md` fixes each slot and size.
+- **Top left.** Brand, Back and Forward, the breadcrumb `My world / Acquit / paypal-payouts`, and Go to (Ctrl K). At plant level the palette results include Acquit's machines.
+- **Top centre.** The mode chips Live, Blueprint, Simulate, Replay (1 to 4). They show at plant level only.
+- **Top right.** Layers (L), Export, and the egress pill `local + kvarm · N B out`, where N is the sum of the session ledger (section 5). Click or Shift V opens the network log in the right card slot. Appearance is a select in the Layers menu, and F8 cycles System, Light, Dark. The choice is stored in `sessionStorage`, so it holds per window.
+- **Hint strip.** The one hint line, centred in the strip row between the flanking islands. It always starts with the focused target (section 3).
+- **Bottom left.** Waiting on you, one queue for the whole session, with its count. U opens the queue as the bottom-left card above the island. The count is the only waiting count on screen. The ui-v1 status panel's `.bl .wait b` shows the same number.
+- **Bottom right.** Zoom, the readout, the live clock, and the Kvarm strip. The strip shows connection state and the live lease, for example `Kvarm · git.acan.local · connected · lease g1 · Claude Code · t-41`. Click opens the network log.
+- **Right rail.** The compass. At world level the minimap takes the rail slot and yields to any card that covers it.
 
-**Bottom bar** (40 px). Queue pill, Kvarm strip, the one hint line, and the mode chips Live, Blueprint, Simulate, Replay (1 to 4). The mode chips show at plant level only.
+**Layout.** The camera fits its subject inside the free rect, which is the stage minus the islands and any open card. `SHELL.md` gives the rect at 1280 x 800, 1440 x 900 and 1600 x 900. The world level's canvas keeps its 1600 x 900 viewBox and fits the free rect. Toasts sit centred at the bottom of the free rect. The jump palette is a centred modal just under the strip row. The concept bar `#cbar` is hidden.
 
-**Layout grid.** Every panel lives in one of these zones. Nothing floats outside them.
-
-| Zone | 1280 x 800 | 1440 x 900 | Holds |
-|---|---|---|---|
-| Top bar | y 0 to 48 | y 0 to 48 | crumbs, jump, appearance, egress |
-| Bottom bar | y 760 to 800 | y 860 to 900 | queue pill, Kvarm strip, hint, modes |
-| Left drawer | x 12, y 60, 360 wide, 688 tall | x 12, y 60, 380 wide, 788 tall | Waiting on you, network log |
-| Dock | x 804, y 60, 464 wide, 688 tall | x 908, y 60, 520 wide, 788 tall | one card at a time |
-| Free rect | stage minus open drawer and dock, inset 12 | same | camera subject, pins, chips, `.nav`, replay deck, toasts |
-
-The stage draws behind every zone. The camera fits its subject inside the free rect, with 100 px clear of the dock edge. With drawer and dock both open the free rect is 408 px wide at 1280 and 492 px at 1440. The minimap and the ui-v1 `.bl` panel sit in the free rect's lower corners and hide when the drawer or the dock covers them. Toasts sit centred at the bottom of the free rect, above the replay deck. The jump palette is a 560 px modal at top 96. The concept bar `#cbar` is hidden.
-
-**Cards.** Every card renders in the dock at dock width and fits without scrolling at 1280 x 800. A card about a machine draws a leader from its header to that machine. If the machine is outside the free rect, the camera eases to it, and no other motion happens. This replaces each concept's own anchoring (orders top 100, clash left of nav, gate and bench at left). The stack order is concept card first, then the ui-v1 inspector. Opening a card closes the card below it in the dock. Esc reopens nothing.
+**Cards.** Every card renders in the right card slot, 392 px wide, from below the strip row to one row above the bottom islands, and fits without scrolling at 1280 x 800. The queue is the one exception and opens at bottom left. A card about a machine draws a leader from its header to that machine. If the machine is outside the free rect, the camera eases to it, and no other motion happens. This replaces each concept's own anchoring (orders top 100, clash left of nav, gate and bench at left). The stack order is concept card first, then the ui-v1 inspector. Opening a card closes the card below it in the slot. Esc reopens nothing.
 
 ## 2. Beats
 

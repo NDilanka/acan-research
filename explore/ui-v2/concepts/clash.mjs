@@ -310,7 +310,7 @@ function clashMount(clashData) {
     plate.hidden = !inView([px, py]) || !!state.open;
     if (!plate.hidden) {
       const width = plate.offsetWidth, height = plate.offsetHeight;
-      const left = clamp(px + 72, 24, innerWidth - width - 24), top = clamp(py + 66, 170, innerHeight - height - 75);
+      const left = clamp(px + 72, SHELL.inset, innerWidth - width - SHELL.inset), top = clamp(py + 66, 170, innerHeight - height - SHELL.slot);
       plate.style.left = left + "px"; plate.style.top = top + "px";
       drawing += '<path class="clash-card-leader" d="' + path([[px, py], [clamp(px, left, left + width), clamp(py, top, top + height)]]) + '"/>';
     }
@@ -498,7 +498,6 @@ export default {
 body:not([data-concept=clash]) #clashLayer{display:none}
 body[data-concept=clash] *,body[data-concept=clash] *::before,body[data-concept=clash] *::after{transition:none!important;animation:none!important}
 body[data-concept=clash] .pins{display:none!important}
-body[data-concept=clash] .hint{opacity:1!important;z-index:45;background:#101110;border:1px solid var(--line);padding:5px 12px;border-radius:6px;top:62px}
 body[data-concept=clash] .wait b{margin-left:0}
 body[data-concept=clash] #clashWaiting{font:10px var(--mono);margin-left:auto;color:#d4b67f;white-space:nowrap}
 body[data-concept=clash]:not([data-mode=live]) #clashLayer{display:none}
@@ -510,10 +509,10 @@ body[data-concept=clash].clash-breaker-wins .ent[data-id=bot-cc] .drone-lamp cir
 #clashLayer [hidden]{display:none!important}
 #clashLayer button:focus-visible{outline:2px solid #c9a45c;outline-offset:4px}
 #clashDrawing{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-#clashToolbar{position:absolute;right:122px;top:92px;display:flex;align-items:center;gap:5px;padding:3px 7px 3px 13px;border:1px solid var(--line2);background:#121312;border-radius:9px;pointer-events:auto;z-index:2}
+#clashToolbar{position:absolute;left:var(--inset);top:var(--slot);height:var(--strip);display:flex;align-items:center;gap:5px;padding:0 4px 0 12px;border:1px solid var(--line2);background:#121312;border-radius:9px;pointer-events:auto;z-index:2}
 #clashCount{font:11px var(--mono);color:#dfbf84;margin-right:10px;white-space:nowrap}
 #clashCount[data-done=true]{color:var(--ok)}
-#clashToolbar button{padding:5px 8px;border-radius:5px;color:#aaa;font-size:11px;white-space:nowrap}
+#clashToolbar button{padding:3px 8px;border-radius:5px;color:#aaa;font-size:11px;white-space:nowrap}
 #clashToolbar button:hover,#clashToolbar button[aria-pressed=true]{background:#ffffff0c;color:#eee}
 #clashToolbar button:disabled{opacity:.3;cursor:default}
 #clashWriteCount{font:10px var(--mono);color:#aaa;white-space:nowrap}
@@ -611,7 +610,7 @@ body[data-concept=clash].clash-breaker-wins .ent[data-id=bot-cc] .drone-lamp cir
 .clash-kv-row[data-state=superseded] i{color:#9b917f;text-decoration:line-through}
 .clash-forecast{margin-top:6px;padding-top:5px;border-top:1px dashed #444;font:9px var(--mono);color:#a39a86}
 .clash-forecast[data-truncated=true]{color:var(--wait)}
-.clash-kv-panel{position:absolute;right:16px;top:62px;width:380px;z-index:46;max-height:calc(100vh - 220px)}
+.clash-kv-panel{position:absolute;right:var(--inset);top:var(--slot);width:380px;z-index:46;max-height:calc(100vh - 220px)}
 .clash-prov{position:fixed;z-index:47;width:390px}
 .clash-prov-dl{display:grid;grid-template-columns:86px 1fr;gap:4px 10px;margin:0;font:10px/1.5 var(--mono)}
 .clash-prov-dl dt{color:#888}
@@ -633,6 +632,6 @@ body[data-concept=clash].clash-breaker-wins .ent[data-id=bot-cc] .drone-lamp cir
 .clash-prov [data-evidence-state=unknown]{color:#9a9a9a}
 .clash-prov [data-evidence-state=stale]{color:#9b917f;text-decoration:underline dashed #9b917f80;text-underline-offset:3px}
 `.replace(/^([.#][^{]+)\{/gm, (_, selectors) => selectors.split(",").map((s) => "body[data-concept=clash] " + s.trim()).join(",") + "{"),
-  html: `<script>addEventListener("keydown", (ev) => { if (document.body.dataset.concept === "clash" && window.clashKeydown) window.clashKeydown(ev); }, { capture: true });</script><div id="clashLayer" hidden><svg id="clashDrawing" aria-hidden="true"></svg><div id="clashToolbar"><span id="clashCount" role="status"></span><button id="clashFootprints" aria-pressed="false">Footprints</button><span id="clashWriteCount"></span><button id="clashNext">Next clash</button><button id="clashUndo">Undo</button></div><div id="clashPins"></div><div id="clashLabels"></div><aside id="clashAdvisory"></aside><article class="clash-order" id="clashOrder" aria-label="Claimed payout order"></article><section class="clash-card" id="clashCard" aria-label="Settle clash" hidden></section><section class="clash-card clash-kv-panel" id="clashKvPanel" role="dialog" aria-label="Kvarm connection" hidden></section><section class="clash-card clash-prov" id="clashProv" role="dialog" aria-label="Provenance" hidden></section></div>`,
+  html: `<script>addEventListener("keydown", (ev) => { if (document.body.dataset.concept === "clash" && window.clashKeydown) window.clashKeydown(ev); }, { capture: true });</script><div id="clashLayer" hidden><svg id="clashDrawing" aria-hidden="true"></svg><div id="clashToolbar" data-hint-row><span id="clashCount" role="status"></span><button id="clashFootprints" aria-pressed="false">Footprints</button><span id="clashWriteCount"></span><button id="clashNext">Next clash</button><button id="clashUndo">Undo</button></div><div id="clashPins"></div><div id="clashLabels"></div><aside id="clashAdvisory"></aside><article class="clash-order" id="clashOrder" aria-label="Claimed payout order"></article><section class="clash-card" id="clashCard" aria-label="Settle clash" hidden></section><section class="clash-card clash-kv-panel" id="clashKvPanel" role="dialog" aria-label="Kvarm connection" hidden></section><section class="clash-card clash-prov" id="clashProv" role="dialog" aria-label="Provenance" hidden></section></div>`,
   script: `function clashInit(params) { (${clashMount.toString()})(${JSON.stringify({ declarations: DECLARATIONS, clashes: CLASHES, witnesses: [...WITNESSES, QUESTION.options[0].witness], order: ORDER, kv: { origin: KVARM.origin, host: KVARM.host, repo: KVARM.repo, staleAfter: KVARM.staleAfter, ...KVARM.clash } })}); }`,
 };

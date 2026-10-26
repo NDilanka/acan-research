@@ -22,7 +22,7 @@ if (ONLY && !LIST.length) throw new Error("unknown concept " + ONLY + ", expecte
 const OUT = process.env.OUT || (ONLY ? "live-" + ONLY + ".html" : "live.html");
 const CBAR = '<nav class="cbar' + (LIST.length === 1 ? " solo" : "") + '" id="cbar">' + LIST.map((c) => '<a href="#c=' + c.id + '" data-c="' + c.id + '">' + c.label + "</a>").join("") + "</nav>";
 const HINTS = Object.fromEntries(LIST.map((c) => [c.id, c.hint || ""]));
-const CBAR_CSS = ".cbar.solo{display:none}.cbar{position:fixed;top:92px;left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:3px;border-radius:9px;background:var(--glass);border:1px solid var(--line);z-index:40;font:500 11px var(--sans)}.cbar a{color:var(--dim);text-decoration:none;padding:4px 10px;border-radius:6px}.cbar a:hover{color:var(--text)}body[data-concept] .cbar a[aria-current]{color:#111;background:#c9a45c}body[data-concept] .toast,body[data-concept] .toast.on{bottom:auto;transform:none;transition:none;max-width:440px;z-index:60;line-height:1.45}";
+const CBAR_CSS = ".cbar.solo{display:none}.cbar{position:fixed;top:var(--below);left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:3px;border-radius:9px;background:var(--glass);border:1px solid var(--line);z-index:40;font:500 11px var(--sans)}.cbar a{color:var(--dim);text-decoration:none;padding:4px 10px;border-radius:6px}.cbar a:hover{color:var(--text)}body[data-concept] .cbar a[aria-current]{color:#111;background:#c9a45c}body[data-concept] .toast,body[data-concept] .toast.on{bottom:auto;transform:none;transition:none;max-width:440px;z-index:60;line-height:1.45}";
 // Concept pages: a toast describes only the latest action, so any key or press clears it before handlers run.
 // Registered in <head> so it runs ahead of every other capture listener.
 const TOAST_DISMISS = '<script>for (const t of ["keydown", "pointerdown"]) addEventListener(t, (e) => { if (!document.body || !document.body.dataset.concept || (t === "keydown" && ["Shift", "Alt", "Control", "Meta"].includes(e.key))) return; const el = document.getElementById("toast"); if (el) el.classList.remove("on"); }, true);</script>';
@@ -33,17 +33,27 @@ const W = 1600, H = 900;
 const LOGO = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.1"><circle cx="12" cy="12" r="10.5" opacity=".45"/><circle cx="12" cy="12" r="6.5" opacity=".7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><circle cx="18.5" cy="12" r="1.4" fill="currentColor"/><circle cx="4.6" cy="7.6" r="1" fill="currentColor"/></svg>`;
 const DRONE_ICON = `<svg viewBox="0 0 24 16" width="22" height="15"><circle cx="5" cy="9" r="3.2" fill="#1a1a1a" stroke="currentColor" stroke-width=".8"/><circle cx="19" cy="9" r="3.2" fill="#1a1a1a" stroke="currentColor" stroke-width=".8"/><circle cx="12" cy="8" r="6" fill="#2c2c2c" stroke="currentColor" stroke-width=".9"/><circle cx="12" cy="8.6" r="2.6" fill="#080808" stroke="currentColor" stroke-width=".6"/><circle class="eye" cx="12" cy="8.6" r="1" fill="#fff"/></svg>`;
 
+// Shell geometry in px. The CSS tokens and the page global SHELL both come from here, so script layout and CSS cannot drift.
+const SHELL = { inset: 16, row: 40, gap: 8, strip: 28, card: 392, rail: 96 };
+SHELL.slot = SHELL.inset + SHELL.row + SHELL.gap;
+SHELL.below = SHELL.slot + SHELL.strip + SHELL.gap;
+// Islands carry their own tokens, so a host that re-themes its cards (world) cannot leak into the shell chrome.
+const ISLANDS = ":is(.fl,.nav,.pop,.hint,.toast,.cbar,.watermark)";
 const css = `
 ${ISO_CSS}
 ${STATE_CSS}
 :root{--glass:rgba(18,18,18,.7);--glass-hi:rgba(26,26,26,.82);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.13);--text:#d6d6d6;--dim:#7c7c7c;--faint:#4a4a4a;--wait:#e1a43c;
 --ink:#ececec;--hover:rgba(255,255,255,.06);--press:rgba(255,255,255,.09);--tick:rgba(255,255,255,.22);--focus:#c9a45c;--wait-ink:#f1d5a2;--wait-fill:rgba(225,164,60,.09);--wait-chip:rgba(225,164,60,.18);--sw-off:#2a2a2a;--sw-on:#3d3d3d;--knob:#bbb;--knob-on:#fff;
---inset:16px;--row:40px;--gap:8px;--slot:calc(var(--inset) + var(--row) + var(--gap));
+${Object.entries(SHELL).map(([k, v]) => "--" + k + ":" + v + "px").join(";")};
 --sans:"Inter","IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;--ease:cubic-bezier(.32,.72,0,1);
 --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 12px 32px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.3)}
-body[data-appearance=light]{--glass:rgba(252,250,245,.8);--glass-hi:rgba(252,250,245,.94);--line:rgba(36,40,45,.1);--line2:rgba(36,40,45,.18);--text:#24282d;--dim:#50575e;--faint:#60656b;--wait:#805400;
+${ISLANDS}{--glass:rgba(18,18,18,.7);--glass-hi:rgba(26,26,26,.82);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.13);--text:#d6d6d6;--dim:#8a8a8a;--faint:#6a6a6a;--wait:#e1a43c;
+--ink:#ececec;--hover:rgba(255,255,255,.06);--press:rgba(255,255,255,.09);--tick:rgba(255,255,255,.22);--focus:#c9a45c;--wait-ink:#f1d5a2;--wait-fill:rgba(225,164,60,.09);--wait-chip:rgba(225,164,60,.18);--sw-off:#2a2a2a;--sw-on:#3d3d3d;--knob:#bbb;--knob-on:#fff;
+--shadow:0 1px 0 rgba(255,255,255,.04) inset,0 12px 32px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.3)}
+body[data-appearance=light] ${ISLANDS}{--glass:rgba(252,250,245,.8);--glass-hi:rgba(252,250,245,.94);--line:rgba(36,40,45,.1);--line2:rgba(36,40,45,.18);--text:#24282d;--dim:#50575e;--faint:#60656b;--wait:#805400;
 --ink:#16191c;--hover:rgba(36,40,45,.06);--press:rgba(36,40,45,.09);--tick:rgba(36,40,45,.3);--focus:#795a27;--wait-ink:#6b4700;--wait-fill:rgba(128,84,0,.08);--wait-chip:rgba(128,84,0,.14);--sw-off:#d4cfc3;--sw-on:#a99f8c;--knob:#fcfaf5;--knob-on:#fff;
 --shadow:0 1px 0 rgba(255,255,255,.7) inset,0 8px 24px rgba(41,37,31,.1),0 1px 3px rgba(41,37,31,.08)}
+body[data-appearance=light] .toast{color:var(--text)}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#0a0a0a;color:var(--text);font:13px/1.4 var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
@@ -119,13 +129,15 @@ body.still .iso-line[data-flow],body.still .smoke circle,body.still .lamp,body.s
 .live{display:flex;align-items:center;gap:7px;font:11px var(--mono);color:var(--dim)}
 .live b{color:var(--ink);letter-spacing:.12em;font-weight:500}
 .motion{font:11px var(--mono);color:var(--faint)}
-.hint{position:fixed;left:50%;top:var(--slot);white-space:nowrap;transform:translateX(-50%);font:10.5px var(--mono);letter-spacing:.06em;color:var(--dim);text-transform:uppercase;transition:opacity .8s;pointer-events:none;z-index:5}
+.hint{position:fixed;left:50%;top:var(--slot);height:var(--strip);white-space:nowrap;transform:translateX(-50%);font:11px/16px var(--mono);letter-spacing:.06em;color:var(--dim);text-transform:uppercase;transition:opacity .8s;pointer-events:none;z-index:5;padding:5px 12px;border-radius:8px;background:var(--glass);border:1px solid var(--line)}
+.hint:empty{display:none}
+body[data-concept] .hint{opacity:1!important;z-index:45;transition:none}
 body.used .hint,body.has-insp .hint{opacity:0}
-.watermark{position:fixed;left:50%;top:var(--slot);transform:translateX(-50%);font:10.5px var(--mono);letter-spacing:.2em;color:var(--dim);opacity:0;transition:opacity .4s;pointer-events:none}
+.watermark{position:fixed;left:50%;top:var(--below);transform:translateX(-50%);font:11px var(--mono);letter-spacing:.2em;color:var(--dim);opacity:0;transition:opacity .4s;pointer-events:none}
 body:not([data-mode=live]) .watermark{opacity:1}
 
-.nav{position:fixed;right:var(--inset);top:var(--slot);display:flex;flex-direction:column;align-items:center;gap:var(--gap);z-index:5}
-.has-insp .nav,.has-insp .br{right:calc(392px + var(--inset) + var(--gap))}
+.nav{position:fixed;right:var(--inset);top:var(--slot);width:var(--rail);display:flex;flex-direction:column;align-items:center;gap:var(--gap);z-index:5}
+.has-insp .nav{visibility:hidden}
 [data-nav-slot][data-yield]{visibility:hidden}
 .compass{width:74px;height:74px;border-radius:50%;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--line);position:relative;cursor:ew-resize;box-shadow:var(--shadow)}
 .compass svg{position:absolute;inset:0}
@@ -141,20 +153,21 @@ body:not([data-mode=live]) .watermark{opacity:1}
 
 .pop{position:fixed;top:var(--slot);right:var(--inset);width:250px;padding:8px;border-radius:12px;background:var(--glass-hi);backdrop-filter:blur(18px);border:1px solid var(--line2);box-shadow:var(--shadow);opacity:0;transform:translateY(-4px) scale(.98);transform-origin:top right;pointer-events:none;z-index:10}
 .pop.open{opacity:1;transform:none;pointer-events:auto}
-.pop h4{margin:4px 6px 6px;font:10px var(--mono);letter-spacing:.12em;color:var(--faint);text-transform:uppercase;font-weight:400}
+.pop h4{margin:4px 6px 6px;font:11px var(--mono);letter-spacing:.12em;color:var(--faint);text-transform:uppercase;font-weight:400}
 .pop label{position:relative;display:flex;align-items:center;justify-content:space-between;padding:6px;border-radius:7px;cursor:pointer;color:var(--text)}
 .pop label:hover{background:var(--hover)}
 .pop label.off{color:var(--faint);cursor:default}
-.pop label small{font:10px var(--mono);color:var(--faint)}
+.pop label small{font:11px var(--mono);color:var(--faint)}
 .sw{width:26px;height:15px;border-radius:999px;background:var(--sw-off);position:relative;transition:background .2s;flex:none}
 .sw::after{content:"";position:absolute;left:2px;top:2px;width:11px;height:11px;border-radius:50%;background:var(--knob);transition:transform .25s var(--ease)}
 input:checked+.sw,[aria-pressed=true]>.sw{background:var(--sw-on)}input:checked+.sw::after,[aria-pressed=true]>.sw::after{transform:translateX(11px);background:var(--knob-on)}
 .pop input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.pop select{font:11px var(--mono);color:var(--text);background:var(--hover);border:1px solid var(--line2);border-radius:6px;padding:2px 4px}
 .fl kbd,.pop kbd{font-size:11px}
 :is(.fl,.nav,.pop) :is(button,a,select,input,[tabindex]):focus-visible,.pop label:has(input:focus-visible){outline:1.5px solid var(--focus);outline-offset:1px}
 :is(.fl,.nav,.pop) :focus:not(:focus-visible),.pop input:focus-visible{outline:none}
 
-.insp{position:fixed;top:var(--slot);right:var(--inset);bottom:var(--inset);width:392px;border-radius:16px;background:var(--glass-hi);backdrop-filter:blur(20px) saturate(1.2);-webkit-backdrop-filter:blur(20px) saturate(1.2);border:1px solid var(--line2);box-shadow:var(--shadow);transform:translateX(calc(100% + 80px));z-index:7;display:flex;flex-direction:column;overflow:hidden}
+.insp{position:fixed;top:var(--below);right:var(--inset);bottom:var(--slot);width:var(--card);border-radius:16px;background:var(--glass-hi);backdrop-filter:blur(20px) saturate(1.2);-webkit-backdrop-filter:blur(20px) saturate(1.2);border:1px solid var(--line2);box-shadow:var(--shadow);transform:translateX(calc(100% + 80px));z-index:7;display:flex;flex-direction:column;overflow:hidden}
 .insp.open{transform:none}
 .ih{display:flex;align-items:center;gap:10px;padding:14px 14px 10px}
 .ih .mono{display:grid;place-items:center;min-width:30px;height:30px;padding:0 5px;border-radius:8px;background:#e8e8e8;color:#0a0a0a;font:700 12px var(--mono)}
@@ -220,7 +233,13 @@ body[data-mode=blueprint] .iso{--anatomy-paper:#0d1a2a;--anatomy-face:#11223a;--
 body[data-mode=simulate]{--paper:radial-gradient(120% 90% at 50% 45%,#141b17,#090d0b 70%);--grid-minor:rgba(170,230,190,.04);--grid-major:rgba(170,230,190,.09);--grid-axis:rgba(170,230,190,.15)}
 body[data-mode=simulate] .iso{--anatomy-paper:#111714;--anatomy-face:#17201b;--anatomy-top:#18221c;--anatomy-shade-0:#0d120f;--anatomy-shade-1:#0f1511;--anatomy-shade-2:#121914;--anatomy-shade-3:#141c17;--anatomy-hi:#cfe0d4;--anatomy-mid:#62786a;--anatomy-lo:#36463c;--anatomy-faint:#233029}
 body[data-mode=replay]{--paper:radial-gradient(120% 90% at 50% 45%,#1b160f,#0d0a07 70%);--grid-minor:rgba(240,210,160,.04);--grid-major:rgba(240,210,160,.09);--grid-axis:rgba(240,210,160,.15)}
+body[data-appearance=light]{background:#f4f1ea}
+body[data-appearance=light][data-mode=live]{--paper:radial-gradient(120% 90% at 50% 45%,#f8f5ed,#ebe7dc 70%);--grid-minor:rgba(36,40,45,.05);--grid-major:rgba(36,40,45,.09);--grid-axis:rgba(36,40,45,.15)}
+body[data-appearance=light][data-mode=blueprint]{--paper:radial-gradient(120% 90% at 50% 45%,#f1f6fa,#e1eaf2 70%);--grid-minor:rgba(40,101,139,.07);--grid-major:rgba(40,101,139,.13);--grid-axis:rgba(40,101,139,.2)}
+body[data-appearance=light][data-mode=simulate]{--paper:radial-gradient(120% 90% at 50% 45%,#f3f6f1,#e4eae1 70%);--grid-minor:rgba(23,104,93,.06);--grid-major:rgba(23,104,93,.11);--grid-axis:rgba(23,104,93,.18)}
+body[data-appearance=light][data-mode=replay]{--paper:radial-gradient(120% 90% at 50% 45%,#f8f0e2,#ece0cb 70%);--grid-minor:rgba(121,90,39,.06);--grid-major:rgba(121,90,39,.11);--grid-axis:rgba(121,90,39,.18)}
 body[data-mode=replay] .iso{--anatomy-paper:#16120d;--anatomy-face:#1e1912;--anatomy-top:#201a13;--anatomy-shade-0:#120e0a;--anatomy-shade-1:#14100b;--anatomy-shade-2:#17130e;--anatomy-shade-3:#1a1510;--anatomy-hi:#e3d3b8;--anatomy-mid:#7f6f58;--anatomy-lo:#4a3f31;--anatomy-faint:#2e271e}
+body[data-appearance=light] .stage .iso{--anatomy-paper:#F2EEE4;--anatomy-face:#F8F5ED;--anatomy-top:#FCFAF5;--anatomy-shade-0:#C5C0B4;--anatomy-shade-1:#D5D0C5;--anatomy-shade-2:#E4E0D6;--anatomy-shade-3:#EEEBE3;--anatomy-lit-top:#FCFAF5;--anatomy-lit-shade:#E4E0D6;--anatomy-hi:#343A40;--anatomy-mid:#59616A;--anatomy-lo:#929187;--anatomy-faint:#CBC7BD;--anatomy-lit:#1B1F24;--anatomy-halo:#7B7465;--anatomy-halo-opacity:.12;--anatomy-dot:#795A27;--anatomy-red:#AC392B;--anatomy-green:#17685D;--anatomy-blue:#28658B;--anatomy-weight:1px}
 `;
 
 const chips = ACQUIT.entities.filter((e) => e.kind !== "scaffold").map((e) => `<div class="chip" data-id="${e.id}" data-state="${e.state}"><span class="mono">${e.mono}</span>${e.name}<span class="rd">${e.reading}</span></div>`).join("");
@@ -248,6 +267,7 @@ const body = `
   <label>Territories<input type="checkbox" data-layer="territories" checked><span class="sw"></span></label>
   <label>Choices <small>pins</small><input type="checkbox" data-layer="choices" checked><span class="sw"></span></label>
   <label>Fog <small>what Acan doesn't know</small><input type="checkbox" data-layer="fogged"><span class="sw"></span></label>
+  <label>Appearance <small>F8</small><select id="appearance" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
 </div>
 <div class="nav" id="nav" data-nav-slot>
   <div class="compass" id="compass" title="Drag to orbit. Double-click to reset.">${rose}<div class="read" id="azRead">35°</div></div>
@@ -604,9 +624,18 @@ ${PAL_SCRIPT}
 ${FR_SCRIPT}
 ${SH_SCRIPT}
 ${FOG_SCRIPT}
+const SHELL = ${JSON.stringify(SHELL)};
 const CONCEPT = new URLSearchParams(location.hash.slice(1)).get("c") || "";
 const conceptActive = (id) => CONCEPT === id;
 if (CONCEPT) document.body.dataset.concept = CONCEPT;
+// One appearance for the whole window. Dark is the default so a headless run never inherits the host's colour scheme.
+function shellAppearance(v) {
+  document.body.dataset.appearance = v === "system" ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : v;
+  $("#appearance").value = v;
+}
+{ const p = new URLSearchParams(location.hash.slice(1)), v = p.get("appearance") || p.get("theme"); shellAppearance(["light", "dark", "system"].includes(v) ? v : "dark"); }
+$("#appearance").onchange = (e) => shellAppearance(e.target.value);
+addEventListener("keydown", (e) => { if (e.key !== "F8" || e.ctrlKey || e.metaKey || e.altKey || conceptActive("world")) return; e.preventDefault(); shellAppearance(document.body.dataset.appearance === "light" ? "dark" : "light"); });
 const CONCEPT_HINTS = ${JSON.stringify(HINTS)};
 if (CONCEPT_HINTS[CONCEPT]) $(".hint").textContent = CONCEPT_HINTS[CONCEPT];
 function setWaitingCount(n) {
@@ -687,10 +716,26 @@ function shellYield() {
     }
     slot.toggleAttribute("data-yield", hit);
   }
+  shellHintRow();
+}
+// The hint shares its row with left strips ([data-hint-row]) and the compass rail. It stays centred until a narrow
+// window would make it overlap one of them, then centres in the span between them.
+function shellHintRow() {
+  const hint = $(".hint");
+  if (!hint || !hint.offsetWidth) return;
+  const w = hint.offsetWidth;
+  let lo = SHELL.inset, hi = innerWidth - SHELL.inset;
+  for (const e of document.querySelectorAll("[data-hint-row]")) { const r = e.getBoundingClientRect(); if (r.width) lo = Math.max(lo, r.right + SHELL.gap); }
+  const nav = $(".nav");
+  if (nav && nav.getBoundingClientRect().width) hi = Math.min(hi, nav.getBoundingClientRect().left - SHELL.gap);
+  const left = Math.max(lo, Math.min(innerWidth / 2 - w / 2, hi - w));
+  const v = left === innerWidth / 2 - w / 2 ? "" : Math.round(left + w / 2) + "px";
+  if (hint.style.left !== v) hint.style.left = v;
 }
 const shellYieldSoon = () => { if (!shellYieldRaf) shellYieldRaf = requestAnimationFrame(shellYield); };
 new MutationObserver(shellYieldSoon).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "hidden", "style", "open"] });
-addEventListener("resize", shellYieldSoon);for (const a of document.querySelectorAll("#cbar a")) { if (a.dataset.c === CONCEPT) a.setAttribute("aria-current", "true"); a.onclick = (e) => { e.preventDefault(); location.hash = "c=" + a.dataset.c; location.reload(); }; }
+addEventListener("resize", shellYieldSoon);
+for (const a of document.querySelectorAll("#cbar a")) { if (a.dataset.c === CONCEPT) a.setAttribute("aria-current", "true"); a.onclick = (e) => { e.preventDefault(); location.hash = "c=" + a.dataset.c; location.reload(); }; }
 ${LIST.map((c) => c.script).join("\n")}
 const params = new URLSearchParams(location.hash.slice(1));
 if (params.get("az")) cam.az = camGoal.az = +params.get("az");

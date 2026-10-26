@@ -43,7 +43,8 @@
     ]
   },
   {
-    "wait": 1500
+    "eval": "(async()=>{const ok=()=>!!ordersState.kvarm.lease&&!!document.querySelector('#orders-holder-row');for(let i=0;i<160&&!ok();i++)await new Promise(r=>setTimeout(r,50));return ok()})()",
+    "expect": true
   },
   {
     "eval": "[ordersState.kvarm.issue,ordersState.kvarm.dispatched,!!ordersState.kvarm.lease,ordersState.kvarm.lease&&ordersState.kvarm.lease.holder,!!document.querySelector('#orders-holder-row'),document.querySelector('#orders-plate b').textContent,document.querySelector('#orders-plate b').dataset.tone]",
@@ -58,7 +59,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -111,7 +112,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {
@@ -130,7 +131,7 @@
     ]
   },
   {
-    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.orders-hint'])",
+    "eval": "polishAudit(['#orders-card','#orders-dock','#orders-guide','#orders-kv-panel','#orders-prov','.orders-mark','.hint'])",
     "expect": []
   },
   {

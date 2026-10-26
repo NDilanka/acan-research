@@ -512,7 +512,7 @@
     "shot": "gate-11-allowance-60"
   },
   {
-    "eval": "(async()=>{const snap=()=>JSON.stringify([document.querySelector('#gateStation').innerHTML.length,document.querySelector('#gateDrawing').innerHTML]);const a=snap();await new Promise(r=>setTimeout(r,300));return a===snap()})()",
+    "eval": "(async()=>{for(let i=0;i<100&&(view.x!==goal.x||view.y!==goal.y||view.s!==goal.s||cam.az!==camGoal.az||cam.el!==camGoal.el);i++)await new Promise(r=>setTimeout(r,30));const snap=()=>JSON.stringify([document.querySelector('#gateStation').innerHTML.length,document.querySelector('#gateDrawing').innerHTML]);const a=snap();await new Promise(r=>setTimeout(r,300));return a===snap()})()",
     "expect": true
   },
   {

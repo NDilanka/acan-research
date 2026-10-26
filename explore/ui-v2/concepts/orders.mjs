@@ -7,13 +7,11 @@ export default {
   css: `
 body[data-concept=orders] *{transition:none!important}
 body[data-concept=orders] .stage *,body[data-concept=orders] .bl *{animation:none!important}
-body[data-concept=orders] .hint{display:none}
 body[data-concept=orders] .orders-ui{display:block}
 body[data-concept=orders] .orders-ui [hidden]{display:none!important}
 .orders-ui{display:none}
-body[data-concept=orders] .orders-hint{position:fixed;left:50%;top:var(--slot);transform:translateX(-50%);white-space:nowrap;font:11px var(--mono);color:#aaa;z-index:8}
 body[data-concept=orders] .orders-gate{margin:4px 0 8px;color:var(--wait);font:10px/1.5 var(--mono)}
-body[data-concept=orders] .orders-guide{position:fixed;left:20px;top:130px;z-index:8;width:288px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--glass);box-shadow:var(--shadow)}
+body[data-concept=orders] .orders-guide{position:fixed;left:var(--inset);top:var(--below);z-index:8;width:288px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--glass);box-shadow:var(--shadow)}
 body[data-concept=orders] .orders-eyebrow{font:10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#c9a45c}
 body[data-concept=orders] .orders-guide h2{margin:6px 0;font-size:17px;font-weight:500;color:#eee}
 body[data-concept=orders] .orders-guide p{margin:0 0 12px;color:#999;font-size:12px}
@@ -158,7 +156,6 @@ body[data-concept=orders] .bl .orders-holder{color:var(--wait)}
     <div class="orders-gate" id="orders-post-gate"></div>
     <footer>M pin · Shift M keep · P post / inspect<br>I question · Shift 1 / 2 answer<br>[ ] events · , . minutes · Esc close</footer>
   </section>
-  <div class="orders-hint" id="orders-hint" hidden>P inspect order · I answer at sqlite</div>
   <div class="orders-fog" id="orders-fog"></div>
   <button class="orders-mark" id="orders-question-pin" hidden>QUESTION · sqlite <kbd>I</kbd></button>
   <button class="orders-mark orders-edge" id="orders-question-edge" hidden></button>
@@ -528,8 +525,8 @@ function ordersRenderCard() {
 function ordersRenderDock() {
   const posted = ordersState.order.state !== "draft";
   $("#orders-guide").hidden = posted;
-  $("#orders-hint").hidden = !posted;
-  $("#orders-hint").textContent = ordersState.question.answered ? "P inspect · click a pin · U Kvarm" : "P inspect · I question · U Kvarm";
+  $(".hint").hidden = !posted;
+  $(".hint").textContent = ordersState.question.answered ? "P inspect · click a pin · U Kvarm" : "P inspect · I question · U Kvarm";
   $("#orders-dock").hidden = !posted || ordersState.open === "order";
   const f = ordersFlag(), l = ordersState.kvarm.lease, lease = ordersLeaseText();
   $("#orders-plate").innerHTML = '<b data-orders-binding="flag"' + ordersFlagAttrs(f) + '>' + ordersEscape(f.text) + '</b><span>' + (l && l.readback ? l.session + ' · ' : '') + ordersData.ORDER.sheet + (lease ? ' · <i class="orders-lease">' + lease + '</i>' : '') + '</span>';

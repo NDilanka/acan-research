@@ -207,13 +207,17 @@ function gateMount(data) {
     if (r.sel) select(r.sel);
   };
 
+  let stationLast = "";
   function paint() {
     if (!conceptActive("gate")) return;
     setWaitingCount(present().length);
     station.hidden = !state.queueOpen;
     if (state.queueOpen) {
-      station.style.maxHeight = Math.max(200, $(".bl").getBoundingClientRect().top - 12 - station.offsetTop) + "px";
-      station.innerHTML = stationHtml();
+      station.style.maxHeight = Math.max(200, $(".bl").getBoundingClientRect().top - 8 - station.offsetTop) + "px";
+      // paint runs on every camera frame and resize. Rewriting identical markup would swap the row under a pointer
+      // between press and release, and the click would then land on the station instead of the row.
+      const html = stationHtml();
+      if (html !== stationLast) station.innerHTML = stationLast = html;
     }
     let drawing = "";
     const [sx, sy] = anchor("you");
@@ -321,7 +325,6 @@ export default {
   css: `
 body:not([data-concept=gate]) #gateLayer{display:none}
 body[data-concept=gate] *,body[data-concept=gate] *::before,body[data-concept=gate] *::after{transition:none!important;animation:none!important}
-body[data-concept=gate] .hint{opacity:1!important;z-index:45;background:#101110;border:1px solid var(--line);padding:5px 12px;border-radius:6px;top:62px}
 body[data-concept=gate]:not([data-mode=live]) #gateLayer{display:none}
 body[data-concept=gate].gate-depart .ent[data-id=breaker],body[data-concept=gate].gate-depart .ent[data-id=bot-cx],body[data-concept=gate].gate-depart .ent[data-id=crane],
 body[data-concept=gate].gate-depart .chip[data-id=breaker],body[data-concept=gate].gate-depart .chip[data-id=bot-cx],body[data-concept=gate].gate-depart .chip[data-id=crane],
@@ -334,8 +337,8 @@ body[data-concept=gate].gate-depart .cpin[data-c=traceparent-queue-rows],body[da
 .gate-away-tag rect{fill:#17150f;stroke:#c9a45c60}
 .gate-away-tag text{fill:#dfbf84;font:10px var(--mono);text-anchor:middle}
 .gate-away-tag .gate-away-sub{fill:#a5936f;font-size:9px}
-.gate-station{position:absolute;left:16px;top:68px;width:400px;padding:10px 14px;border:1px solid var(--line2);border-radius:12px;background:var(--glass-hi);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:var(--shadow);pointer-events:auto;overflow:auto;scrollbar-width:thin;scrollbar-color:#555 transparent}
-.gate-station-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.gate-station{position:absolute;left:var(--inset);top:var(--below);width:400px;padding:8px 14px;border:1px solid var(--line2);border-radius:12px;background:var(--glass-hi);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:var(--shadow);pointer-events:auto;overflow:auto;scrollbar-width:thin;scrollbar-color:#555 transparent}
+.gate-station-head{display:flex;align-items:center;gap:10px;margin-bottom:4px}
 .gate-ic{display:grid;place-items:center;width:30px;height:30px;background:#c9a45c;color:#18140d;border-radius:8px;font-size:16px;flex:none}
 .gate-station h2,.gate-card h2,.gate-brief h2{font-size:15px;font-weight:550;margin:0;color:#eee}
 .gate-station-head small,.gate-card-head small{display:block;font:10px var(--mono);margin-top:2px;color:#999}
@@ -358,7 +361,7 @@ body[data-concept=gate].gate-depart .cpin[data-c=traceparent-queue-rows],body[da
 .gg-cap{stroke:#eee;stroke-width:1.4}
 .gate-gauge text{fill:#e6e6e6;font:9px var(--mono)}
 .gate-demand-note{display:block;font:10px/1.45 var(--mono);color:#a89e8a;margin-top:2px}
-.gate-sec{padding:6px 2px 3px;font:500 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.gate-sec{padding:4px 2px 3px;font:500 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
 .gate-row{display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;padding:2px 8px;border-radius:7px;font-size:12px;color:#d6d6d6;border:1px solid transparent}
 .gate-row:hover{background:#ffffff08}
 .gate-row.gate-cur{border-color:#c9a45c50;background:#c9a45c0a}
@@ -423,7 +426,7 @@ body[data-concept=gate].gate-depart .cpin[data-c=traceparent-queue-rows],body[da
 .gate-acts .gate-pri kbd{color:#666;border-color:#aaa}
 .gate-acts [aria-pressed=true]{border-color:#c9a45c;color:#ecd9ae;background:#c9a45c12}
 .gate-note{display:block;margin-top:8px;font:9.5px var(--mono);color:var(--faint)}
-.gate-brief{position:absolute;right:112px;top:150px;width:540px;max-width:calc(100vw - 560px);padding:11px 15px;border:1px solid var(--line2);border-radius:13px;background:var(--glass-hi);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:var(--shadow);pointer-events:auto;max-height:calc(100vh - 210px);overflow:auto;scrollbar-width:thin;scrollbar-color:#555 transparent}
+.gate-brief{position:absolute;right:calc(var(--inset) + var(--rail) + var(--gap));top:var(--below);width:540px;max-width:calc(100vw - 560px);padding:11px 15px;border:1px solid var(--line2);border-radius:13px;background:var(--glass-hi);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:var(--shadow);pointer-events:auto;max-height:calc(100vh - 210px);overflow:auto;scrollbar-width:thin;scrollbar-color:#555 transparent}
 .gate-held-nothing{font:10px/1.45 var(--mono);color:#b9ad93;border:1px dashed #c9a45c45;border-radius:7px;padding:5px 9px;margin:0 0 6px}
 .gate-brow{display:flex;gap:10px;padding:6px 4px;border-top:1px solid var(--line)}
 .gate-brow-main{min-width:0;flex:1}
