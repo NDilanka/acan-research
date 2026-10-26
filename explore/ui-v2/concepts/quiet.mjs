@@ -7,81 +7,80 @@ export default {
   css: `
 body[data-concept=quiet] *{transition:none!important}
 body[data-concept=quiet] .stage *,body[data-concept=quiet] .bl *{animation:none!important}
-body[data-concept=quiet] .hint{display:none}
 body[data-concept=quiet] .quiet-ui{display:block}
 body[data-concept=quiet] .quiet-ui [hidden]{display:none!important}
 .quiet-ui{display:none}
-body[data-concept=quiet] .quiet-hint{position:fixed;left:20px;top:130px;font:11px var(--mono);color:#aaa;z-index:8}
 body[data-concept=quiet] .quiet-gate{margin:4px 0 8px;color:var(--wait);font:10px/1.5 var(--mono)}
-body[data-concept=quiet] .quiet-guide{position:fixed;left:20px;top:130px;z-index:8;width:288px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--glass);box-shadow:var(--shadow)}
-body[data-concept=quiet] .quiet-eyebrow{font:10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#c9a45c}
-body[data-concept=quiet] .quiet-guide h2{margin:6px 0;font-size:17px;font-weight:500;color:#eee}
-body[data-concept=quiet] .quiet-guide p{margin:0 0 12px;color:#999;font-size:12px}
+body[data-concept=quiet] .quiet-guide{left:var(--inset);top:var(--below);right:auto;z-index:8;width:288px;padding:14px;color:var(--text)}
+body[data-concept=quiet] .quiet-eyebrow{font:10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--focus)}
+body[data-concept=quiet] .quiet-guide h2{margin:6px 0;font-size:17px;font-weight:500;color:var(--ink)}
+body[data-concept=quiet] .quiet-guide p{margin:0 0 12px;color:var(--dim);font-size:12px}
 body[data-concept=quiet] .quiet-guide button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 0;text-align:left;border-top:1px solid var(--line);font-size:12px}
-body[data-concept=quiet] .quiet-guide button small{margin-left:auto;color:#888;font:10px var(--mono)}
+body[data-concept=quiet] .quiet-guide button small{margin-left:auto;color:var(--faint);font:10px var(--mono)}
+body[data-concept=quiet] .quiet-guide button kbd{margin-left:auto}
 body[data-concept=quiet] .quiet-guide .quiet-dot{width:6px;height:6px;border-radius:50%;background:var(--fail)}
 body[data-concept=quiet] .quiet-guide [data-quiet-go=w2] .quiet-dot{background:var(--ok)}
-body[data-concept=quiet] .quiet-guide footer{margin-top:8px;font:10px/1.8 var(--mono);color:#888}
+body[data-concept=quiet] .quiet-guide footer{margin-top:8px;font:10px/1.8 var(--mono);color:var(--faint)}
 body[data-concept=quiet] .quiet-mark{position:fixed;z-index:9;border:1px solid #c9a45c;border-radius:7px;background:#19160f;color:#e6cb96;padding:5px 8px;font:10px var(--mono);white-space:nowrap}
-body[data-concept=quiet] .quiet-card{position:fixed;z-index:12;width:470px;max-width:calc(100vw - 40px);border:1px solid #665333;border-radius:14px;background:rgba(22,22,21,.97);box-shadow:var(--shadow);overflow:auto;scrollbar-width:thin;scrollbar-color:#55462f transparent}
+body[data-concept=quiet] .quiet-card{z-index:12;right:auto;width:470px;max-width:calc(100vw - 40px);padding:0;color:var(--text);border-color:color-mix(in srgb,var(--focus) 45%,var(--line2));overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 body[data-concept=quiet] .quiet-card header{display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
-body[data-concept=quiet] .quiet-card header[data-quiet-plate]{background:#c9a45c13}
-body[data-concept=quiet] .quiet-card h3{font-size:15px;font-weight:500;color:#eee;margin:3px 0 0}
-body[data-concept=quiet] .quiet-close{margin-left:auto;align-self:flex-start;color:#999;width:26px;height:26px;border-radius:5px}
-body[data-concept=quiet] .quiet-close:hover{background:#333;color:#fff}
+body[data-concept=quiet] .quiet-card header[data-quiet-plate]{background:color-mix(in srgb,var(--focus) 8%,transparent)}
+body[data-concept=quiet] .quiet-card h3{font-size:15px;font-weight:500;color:var(--ink);margin:3px 0 0}
+body[data-concept=quiet] .quiet-close{margin-left:auto;align-self:flex-start;color:var(--dim);width:26px;height:26px;border-radius:5px}
+body[data-concept=quiet] .quiet-close:hover{background:var(--hover);color:var(--ink)}
 body[data-concept=quiet] .quiet-body{padding:12px 16px}
-body[data-concept=quiet] .quiet-body label,body[data-concept=quiet] .quiet-section{display:block;font:10px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:#999;margin-bottom:8px}
-body[data-concept=quiet] .quiet-body input,body[data-concept=quiet] .quiet-body textarea{width:100%;border-radius:7px;background:#111;border:1px solid #444;color:#eee;padding:10px;font:12px/1.5 var(--sans);outline:none}
-body[data-concept=quiet] .quiet-body input:focus,body[data-concept=quiet] .quiet-body textarea:focus{border-color:#c9a45c;box-shadow:0 0 0 2px #c9a45c22}
+body[data-concept=quiet] .quiet-body label,body[data-concept=quiet] .quiet-section{display:block;padding:0;background:none;cursor:default;font:10px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+body[data-concept=quiet] .quiet-body input,body[data-concept=quiet] .quiet-body textarea{width:100%;border-radius:7px;background:var(--hover);border:1px solid var(--line2);color:var(--ink);padding:10px;font:12px/1.5 var(--sans);outline:none}
+body[data-concept=quiet] .quiet-body input:focus,body[data-concept=quiet] .quiet-body textarea:focus{border-color:var(--focus);box-shadow:0 0 0 2px color-mix(in srgb,var(--focus) 15%,transparent)}
 body[data-concept=quiet] .quiet-body textarea{resize:vertical;min-height:70px}
 body[data-concept=quiet] #quiet-sentence{resize:none;min-height:58px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;display:block;margin-bottom:12px}
-body[data-concept=quiet] .quiet-sentence{margin:0 0 14px;font-size:13px;line-height:1.5;color:#eee}
+body[data-concept=quiet] .quiet-sentence{margin:0 0 14px;font-size:13px;line-height:1.5;color:var(--ink)}
 body[data-concept=quiet] .quiet-check{display:grid;grid-template-columns:22px 1fr;gap:3px 8px;border-top:1px solid var(--line);padding:7px 0}
-body[data-concept=quiet] .quiet-check b{font:11px var(--mono);color:#c9a45c}
+body[data-concept=quiet] .quiet-check b{font:11px var(--mono);color:var(--focus)}
 body[data-concept=quiet] .quiet-check strong{font:10px var(--mono);letter-spacing:.06em;color:var(--ok);text-transform:uppercase}
 body[data-concept=quiet] .quiet-check[data-polarity=must-not] strong{color:var(--fail)}
-body[data-concept=quiet] .quiet-check p{grid-column:2;margin:0;font-size:12px;color:#ccc}
-body[data-concept=quiet] .quiet-check small{grid-column:2;font:10px/1.5 var(--mono);color:#aaa}
-body[data-concept=quiet] .quiet-locks{padding:9px 0;border-top:1px solid var(--line);display:grid;gap:5px;font:10px var(--mono);color:#c9a45c}
-body[data-concept=quiet] .quiet-passive{font-size:11px;color:#999;border-top:1px dashed #444;padding-top:9px;margin:0}
-body[data-concept=quiet] .quiet-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;color:#888;font:10px var(--mono)}
-body[data-concept=quiet] .quiet-primary{padding:8px 13px;border-radius:7px;background:#c9a45c;color:#14110b;font:500 12px var(--sans)}
-body[data-concept=quiet] .quiet-primary kbd{color:#524222;border-color:#8c723d;margin-left:5px}
+body[data-concept=quiet] .quiet-check p{grid-column:2;margin:0;font-size:12px;color:var(--text)}
+body[data-concept=quiet] .quiet-check small{grid-column:2;font:10px/1.5 var(--mono);color:var(--dim)}
+body[data-concept=quiet] .quiet-locks{padding:9px 0;border-top:1px solid var(--line);display:grid;gap:5px;font:10px var(--mono);color:var(--focus)}
+body[data-concept=quiet] .quiet-passive{font-size:11px;color:var(--dim);border-top:1px dashed var(--line2);padding-top:9px;margin:0}
+body[data-concept=quiet] .quiet-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;color:var(--dim);font:10px var(--mono)}
+body[data-concept=quiet] .quiet-primary{padding:8px 13px;border-radius:7px;background:var(--focus);color:var(--glass-hi);font:500 12px var(--sans)}
+body[data-concept=quiet] .quiet-primary kbd{color:inherit;border-color:color-mix(in srgb,currentColor 45%,transparent);margin-left:5px}
 body[data-concept=quiet] button:disabled{opacity:.4;cursor:default}
-body[data-concept=quiet] .quiet-status{display:flex;align-items:center;gap:6px;min-height:24px;font:10px var(--mono);color:#c9a45c}
+body[data-concept=quiet] .quiet-status{display:flex;align-items:center;gap:6px;min-height:24px;font:10px var(--mono);color:var(--focus)}
 body[data-concept=quiet] .quiet-readbacks{margin-top:12px}
 body[data-concept=quiet] .quiet-reading{border-top:1px solid var(--line);padding:9px 0}
 body[data-concept=quiet] .quiet-reading header{border:0;padding:0 0 5px;display:flex;justify-content:space-between;gap:8px;font-size:12px}
-body[data-concept=quiet] .quiet-reading header span{font:10px var(--mono);color:#999}
+body[data-concept=quiet] .quiet-reading header span{font:10px var(--mono);color:var(--dim)}
 body[data-concept=quiet] .quiet-reading[data-state=differs]{border-left:2px solid var(--wait);padding-left:10px}
 body[data-concept=quiet] .quiet-choice{font:500 12px var(--mono);color:var(--strain)}
 body[data-concept=quiet] .quiet-reading[data-state=matches] header span,body[data-concept=quiet] .quiet-mini[data-state=matches] small{color:var(--ok)}
 body[data-concept=quiet] .quiet-reading[data-state=yields] header span,body[data-concept=quiet] .quiet-mini[data-state=yields] small{color:var(--fail)}
 body[data-concept=quiet] .quiet-reading[data-state=differs] header span,body[data-concept=quiet] .quiet-reading[data-state=rescoring] header span,body[data-concept=quiet] .quiet-mini[data-state=differs] small,body[data-concept=quiet] .quiet-mini[data-state=rescoring] small{color:var(--wait)}
-body[data-concept=quiet] .quiet-reading mark{background:#c9a45c18;color:var(--strain);border-bottom:1px solid var(--wait);padding:0 2px}
-body[data-concept=quiet] .quiet-reading p{margin:0;color:#bbb;font-size:11px;line-height:1.5}
+body[data-concept=quiet] .quiet-reading mark{background:color-mix(in srgb,var(--focus) 10%,transparent);color:var(--strain);border-bottom:1px solid var(--wait);padding:0 2px}
+body[data-concept=quiet] .quiet-reading p{margin:0;color:var(--text);font-size:11px;line-height:1.5}
 body[data-concept=quiet] .quiet-score{display:flex;gap:9px;margin-top:7px;font:10px var(--mono)}
 body[data-concept=quiet] .quiet-score [data-result=pass]{color:var(--ok)}
 body[data-concept=quiet] .quiet-score [data-result=fail]{color:var(--fail)}
 body[data-concept=quiet] .quiet-score [data-result=pending]{color:var(--wait)}
-body[data-concept=quiet] .quiet-answer{display:block;width:100%;padding:11px;margin-top:9px;border:1px solid #4b4335;border-radius:8px;text-align:left;font-size:12px;color:#ddd}
-body[data-concept=quiet] .quiet-answer:hover{border-color:#c9a45c;background:#c9a45c0c}
-body[data-concept=quiet] .quiet-answer kbd{color:#d9ba7e;margin-right:6px}
+body[data-concept=quiet] .quiet-answer{display:block;width:100%;padding:11px;margin-top:9px;border:1px solid var(--line2);border-radius:8px;text-align:left;font-size:12px;color:var(--ink)}
+body[data-concept=quiet] .quiet-answer:hover{border-color:var(--focus);background:var(--hover)}
+body[data-concept=quiet] .quiet-answer kbd{color:var(--focus);margin-right:6px}
 body[data-concept=quiet] .quiet-answer{display:grid;grid-template-columns:64px 1fr;gap:3px 9px}
 body[data-concept=quiet] .quiet-answer kbd{white-space:nowrap;align-self:start;justify-self:start}
 body[data-concept=quiet] .quiet-answer small{grid-column:2;color:var(--strain);font:10px var(--mono)}
-body[data-concept=quiet] .quiet-question-note{color:#aaa;font:11px/1.6 var(--mono);margin:12px 0 0}
-body[data-concept=quiet] .quiet-dock{position:fixed;z-index:10;width:340px;border:1px solid #665333;border-radius:9px;background:rgba(20,19,17,.96);box-shadow:var(--shadow)}
-body[data-concept=quiet] .quiet-plate{padding:10px 12px;width:100%;text-align:left;background:#c9a45c13;border-radius:9px 9px 0 0}
-body[data-concept=quiet] .quiet-plate b{display:block;font:10px var(--mono);color:#daba7b;letter-spacing:.05em}
-body[data-concept=quiet] .quiet-plate span{display:block;font-size:12px;margin-top:5px;color:#eee}
-body[data-concept=quiet] .quiet-mini{border-top:1px solid var(--line);padding:9px 12px;font-size:11px;color:#aaa}
+body[data-concept=quiet] .quiet-question-note{color:var(--dim);font:11px/1.6 var(--mono);margin:12px 0 0}
+body[data-concept=quiet] .quiet-dock{z-index:10;right:auto;width:340px;padding:0;color:var(--text);border-color:color-mix(in srgb,var(--focus) 45%,var(--line2))}
+body[data-concept=quiet] .quiet-plate{padding:10px 12px;width:100%;text-align:left;background:color-mix(in srgb,var(--focus) 8%,transparent);border-radius:11px 11px 0 0}
+body[data-concept=quiet] .quiet-plate b{display:block;font:10px var(--mono);color:var(--focus);letter-spacing:.05em}
+body[data-concept=quiet] .quiet-plate span{display:block;font-size:12px;margin-top:5px;color:var(--ink)}
+body[data-concept=quiet] .quiet-mini{border-top:1px solid var(--line);padding:9px 12px;font-size:11px;color:var(--text)}
 body[data-concept=quiet] .quiet-mini>div{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
-body[data-concept=quiet] .quiet-mini small{font:10px/1.5 var(--mono);color:#999;max-width:145px;text-align:right}
+body[data-concept=quiet] .quiet-mini small{font:10px/1.5 var(--mono);color:var(--dim);max-width:145px;text-align:right}
 body[data-concept=quiet] .quiet-mini .quiet-score{margin-top:5px}
 body[data-concept=quiet] .quiet-mini .quiet-agent{margin-left:7px}
 body[data-concept=quiet] .quiet-edge{position:fixed;z-index:10;max-width:250px}
-body[data-concept=quiet] .quiet-check[data-answer] strong{color:#c9a45c}
+body[data-concept=quiet] .quiet-check[data-answer] strong{color:var(--focus)}
 body[data-concept=quiet] .chip.quiet-witness{pointer-events:auto;cursor:pointer;border-color:var(--ok);color:var(--ok);font:10px var(--mono);letter-spacing:0;opacity:1!important;translate:0 0!important}
 body[data-concept=quiet] .quiet-witness .mono{background:var(--ok)!important;color:#0b1815}
 body[data-concept=quiet] .quiet-witness[data-polarity=must-not]{color:var(--fail);border-color:var(--fail)}
@@ -92,102 +91,100 @@ body[data-concept=quiet] .quiet-link path{stroke:#c9a45c88;fill:none;stroke-widt
 body[data-concept=quiet] .quiet-link circle{fill:#c9a45c}
 body[data-concept=quiet] .quiet-fog{position:fixed;pointer-events:none;width:220px;height:130px;border-radius:50%;background:radial-gradient(ellipse,#b3a5901e,#ad9c7d0c 55%,transparent 72%);z-index:2}
 body[data-concept=quiet] .terr[data-id=paypal-payouts][data-state=claimed] .iso-line{stroke:#c9a45c}
-body[data-concept=quiet] button:focus-visible{outline:1px solid #c9a45c;outline-offset:3px}
+body[data-concept=quiet] button:focus-visible{outline:1.5px solid var(--focus);outline-offset:2px}
 @keyframes quiet-ink{from{clip-path:inset(100% 0 0)}to{clip-path:inset(0)}}
 body[data-concept=quiet] .quiet-ink{animation:quiet-ink .5s ease-out}
 body[data-concept=quiet] .quiet-flagline{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
 body[data-concept=quiet] [data-tone=wait]{color:var(--wait)!important}
-body[data-concept=quiet] [data-tone=local]{color:#b9a273!important}
-body[data-concept=quiet] [data-evidence-state=stale]{color:#9b917f!important;text-decoration:underline dashed #9b917f80;text-underline-offset:3px}
-body[data-concept=quiet] .quiet-lease{font:10px var(--mono);color:#a99a7c;white-space:nowrap}
+body[data-concept=quiet] [data-tone=local]{color:var(--focus)!important}
+body[data-concept=quiet] [data-evidence-state=stale]{color:var(--dim)!important;text-decoration:underline dashed var(--dim);text-underline-offset:3px}
+body[data-concept=quiet] .quiet-lease{font:10px var(--mono);color:var(--dim);white-space:nowrap}
 body[data-concept=quiet] .quiet-plate .quiet-lease{display:inline;margin:0;font-size:10px}
-body[data-concept=quiet] .quiet-kv{border-top:1px solid var(--line);padding:6px 12px 7px;font:10px/1.55 var(--mono);color:#8f897e}
-body[data-concept=quiet] .quiet-card .quiet-kv{padding:7px 16px 8px;background:#ffffff03}
-body[data-concept=quiet] .quiet-kv header{display:flex;gap:6px;border:0;padding:0;color:#9f9583;font:10px var(--mono)}
-body[data-concept=quiet] .quiet-kv header b{margin-left:auto;font-weight:400;color:#c9a45c}
+body[data-concept=quiet] .quiet-kv{border-top:1px solid var(--line);padding:6px 12px 7px;font:10px/1.55 var(--mono);color:var(--dim)}
+body[data-concept=quiet] .quiet-card .quiet-kv{padding:7px 16px 8px;background:color-mix(in srgb,var(--hover) 50%,transparent)}
+body[data-concept=quiet] .quiet-kv header{display:flex;gap:6px;border:0;padding:0;color:var(--dim);font:10px var(--mono)}
+body[data-concept=quiet] .quiet-kv header b{margin-left:auto;font-weight:400;color:var(--focus)}
 body[data-concept=quiet] .quiet-kv header b[data-tone]{color:var(--wait)}
 body[data-concept=quiet] .quiet-kv-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;white-space:nowrap}
-body[data-concept=quiet] .quiet-kv-row b{font-weight:400;color:#c8bfae}
-body[data-concept=quiet] .quiet-kv-row span{overflow:hidden;text-overflow:ellipsis;color:#7f796f}
-body[data-concept=quiet] .quiet-kv-row i{font-style:normal;color:#9f9583}
+body[data-concept=quiet] .quiet-kv-row b{font-weight:400;color:var(--text)}
+body[data-concept=quiet] .quiet-kv-row span{overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
+body[data-concept=quiet] .quiet-kv-row i{font-style:normal;color:var(--dim)}
 body[data-concept=quiet] .quiet-kv-row[data-state=held] b,body[data-concept=quiet] .quiet-kv-row[data-state=held] i{color:var(--wait)}
 body[data-concept=quiet] .quiet-kv-row[data-state=failed] i,body[data-concept=quiet] .quiet-kv-row[data-state=rejected] i{color:var(--fail)}
-body[data-concept=quiet] .quiet-kv-row[data-state=sending] i{color:#777}
+body[data-concept=quiet] .quiet-kv-row[data-state=sending] i{color:var(--faint)}
 body[data-concept=quiet] .quiet-reading[data-state=held] header span,body[data-concept=quiet] .quiet-mini[data-state=held] small{color:var(--wait)}
-body[data-concept=quiet] .quiet-reading[data-state=unknown] header span,body[data-concept=quiet] .quiet-mini[data-state=unknown] small{color:#9a9a9a}
-body[data-concept=quiet] .quiet-bezel{display:inline-grid;place-items:center;width:18px;height:14px;margin-right:6px;border:1px dotted #8a8a8a;border-radius:50%;font:9px var(--mono);color:#bbb;background:repeating-linear-gradient(135deg,transparent 0 3px,#ffffff1a 3px 4px);vertical-align:-2px}
-body[data-concept=quiet] .quiet-src{margin-left:auto;color:#8a8478}
+body[data-concept=quiet] .quiet-reading[data-state=unknown] header span,body[data-concept=quiet] .quiet-mini[data-state=unknown] small{color:var(--dim)}
+body[data-concept=quiet] .quiet-bezel{display:inline-grid;place-items:center;width:18px;height:14px;margin-right:6px;border:1px dotted var(--dim);border-radius:50%;font:9px var(--mono);color:var(--text);background:repeating-linear-gradient(135deg,transparent 0 3px,var(--line2) 3px 4px);vertical-align:-2px}
+body[data-concept=quiet] .quiet-src{margin-left:auto;color:var(--dim)}
 body[data-concept=quiet] .egress{cursor:pointer}
 body[data-concept=quiet] .egress:hover{color:var(--text)}
 body[data-concept=quiet] .egress[data-kv=offline] .dot,body[data-concept=quiet] .egress[data-kv=checked] .dot{background:var(--wait)}
-body[data-concept=quiet] .quiet-panel{position:fixed;z-index:30;top:62px;right:16px;width:380px;max-height:calc(100vh - 140px)}
+body[data-concept=quiet] .quiet-panel{position:fixed;z-index:30;top:var(--slot);right:var(--inset);width:380px;max-height:calc(100vh - 140px)}
 body[data-concept=quiet] .quiet-panel .quiet-kv-row{padding:3px 0;border-top:1px solid var(--line)}
 body[data-concept=quiet] .quiet-panel .quiet-kv-row span{white-space:normal}
-body[data-concept=quiet] .quiet-note{margin:0 0 10px;font-size:11px;line-height:1.5;color:#999}
+body[data-concept=quiet] .quiet-note{margin:0 0 10px;font-size:11px;line-height:1.5;color:var(--dim)}
 body[data-concept=quiet] .quiet-panel .quiet-primary{margin:8px 0 12px}
 body[data-concept=quiet] .quiet-panel .quiet-section{margin:12px 0 4px}
 body[data-concept=quiet] .quiet-prov{position:fixed;z-index:31;width:390px}
-body[data-concept=quiet] .quiet-prov p{margin:0 0 10px;font:11px/1.7 var(--mono);color:#ddd}
+body[data-concept=quiet] .quiet-prov p{margin:0 0 10px;font:11px/1.7 var(--mono);color:var(--ink)}
 body[data-concept=quiet] .quiet-prov dl{display:grid;grid-template-columns:86px 1fr;gap:4px 10px;margin:0;font:10px/1.5 var(--mono)}
-body[data-concept=quiet] .quiet-prov dt{color:#888}
-body[data-concept=quiet] .quiet-prov dd{margin:0;color:#ccc;overflow-wrap:anywhere}
-body[data-concept=quiet] .quiet-bindings{border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font:10px var(--mono);color:#999}
+body[data-concept=quiet] .quiet-prov dt{color:var(--dim)}
+body[data-concept=quiet] .quiet-prov dd{margin:0;color:var(--text);overflow-wrap:anywhere}
+body[data-concept=quiet] .quiet-bindings{border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font:10px var(--mono);color:var(--dim)}
 body[data-concept=quiet] .quiet-bindings summary{cursor:pointer;list-style:none}
-body[data-concept=quiet] .quiet-bindings summary span{float:right;color:#777}
-body[data-concept=quiet] .quiet-bindings button{display:grid;grid-template-columns:110px 1fr;gap:8px;width:100%;text-align:left;padding:4px 0;border-top:1px solid var(--line);font:10px var(--mono);color:#bbb}
-body[data-concept=quiet] .quiet-bindings button span{color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-concept=quiet] .quiet-bindings summary span{float:right;color:var(--faint)}
+body[data-concept=quiet] .quiet-bindings button{display:grid;grid-template-columns:110px 1fr;gap:8px;width:100%;text-align:left;padding:4px 0;border-top:1px solid var(--line);font:10px var(--mono);color:var(--text)}
+body[data-concept=quiet] .quiet-bindings button span{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body[data-concept=quiet] .chip.quiet-bot{opacity:1!important}
 body[data-concept=quiet] .chip small{font:9px var(--mono);color:#9a9a9a;letter-spacing:0;text-transform:none;font-weight:400}
 body[data-concept=quiet] .chip[data-state=dark]{border-color:#555;color:#999}
 body[data-concept=quiet] .chip[data-state=dark] .mono{background:#3a3a3a;color:#aaa}
 body[data-concept=quiet] .ent[data-state=dark]{opacity:.45}
 body[data-concept=quiet] .bl .quiet-holder{color:var(--wait)}
-body[data-concept=quiet] #cbar{display:none}
-body[data-concept=quiet]:not(.alt) .quiet-say,body[data-concept=quiet]:not(.alt) .br .motion{display:none}
+body[data-concept=quiet]:not(.alt) :is(.quiet-say,.br .motion,#rpRes p,.pal-row .tx small){display:none}
 body[data-concept=quiet] .quiet-g{display:inline-flex;gap:3px;font:11px var(--mono);letter-spacing:0}
 body[data-concept=quiet] .quiet-g [data-result=pass]{color:var(--ok)!important}
 body[data-concept=quiet] .quiet-g [data-result=fail]{color:var(--fail)!important}
 body[data-concept=quiet] .quiet-g [data-result=pending]{color:var(--wait)!important}
-body[data-concept=quiet] .quiet-n{font:11px var(--mono);color:#cfcfcf!important}
+body[data-concept=quiet] .quiet-n{font:11px var(--mono);color:var(--ink)!important}
 body[data-concept=quiet] .quiet-reading header>span,body[data-concept=quiet] .quiet-mini small{display:inline-flex;align-items:baseline;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 body[data-concept=quiet] .quiet-pol{font-style:normal;font-weight:400;margin-right:4px}
 body[data-concept=quiet] .quiet-ev{font-style:normal;font-weight:400;color:#9a9a9a;letter-spacing:0}
 body[data-concept=quiet] .quiet-check{grid-template-columns:22px auto 1fr;align-items:baseline}
 body[data-concept=quiet] .quiet-check small{grid-column:auto;font-size:11px}
 body[data-concept=quiet] .quiet-check .quiet-say{grid-column:2 / span 2}
-body[data-concept=quiet] .quiet-passive b{font-weight:500;color:#ccc;margin-right:6px}
+body[data-concept=quiet] .quiet-passive b{font-weight:500;color:var(--text)}
 body.alt[data-concept=quiet] .chip.quiet-bot{pointer-events:auto}
 `,
   html: `
 <div class="quiet-ui" id="quiet-ui">
-  <section class="quiet-guide" id="quiet-guide" aria-label="Work orders">
+  <section class="quiet-guide pop open" id="quiet-guide" aria-label="Work orders" data-empty>
     <div class="quiet-eyebrow quiet-say">Work orders · from witnesses</div>
     <h2>Pin real moments.</h2>
     <p class="quiet-say">Agents replay their reading before they claim.</p>
     <button data-quiet-go="w1"><i class="quiet-dot"></i>Retry · 15:44 <small class="quiet-say">Replay</small></button>
     <button data-quiet-go="w2"><i class="quiet-dot"></i>PayPal · 15:35 <small class="quiet-say">Replay</small></button>
-    <button id="quiet-pin-not">Pin must not <small>M</small></button>
-    <button id="quiet-pin-keep">Pin must keep <small>Shift M</small></button>
+    <button id="quiet-pin-not">Pin must not <kbd>M</kbd></button>
+    <button id="quiet-pin-keep">Pin must keep <kbd>Shift M</kbd></button>
     <div class="quiet-gate" id="quiet-pin-gate"></div>
-    <button id="quiet-post">Post <small>P</small></button>
+    <button id="quiet-post">Post <kbd>P</kbd></button>
     <div class="quiet-gate" id="quiet-post-gate"></div>
     <footer class="quiet-say">M pin · Shift M keep · P post / inspect<br>I question · Shift 1 / 2 answer<br>[ ] events · , . minutes · Esc close</footer>
   </section>
-  <div class="quiet-hint" id="quiet-hint" hidden>P inspect order · I answer at sqlite</div>
   <div class="quiet-fog" id="quiet-fog"></div>
   <button class="quiet-mark" id="quiet-question-pin" hidden>QUESTION · sqlite <kbd>I</kbd></button>
   <button class="quiet-mark quiet-edge" id="quiet-question-edge" hidden></button>
   <button class="quiet-mark quiet-edge" id="quiet-order-edge" hidden></button>
   <div id="quiet-witness-edges"></div>
-  <div class="quiet-dock" id="quiet-dock" hidden>
+  <div class="quiet-dock pop open" id="quiet-dock" hidden>
     <button class="quiet-plate" id="quiet-plate"></button>
     <div class="quiet-kv" id="quiet-kv-dock"></div>
     <div id="quiet-mini-readbacks"></div>
   </div>
   <svg class="quiet-link" id="quiet-link"></svg>
-  <section class="quiet-card" id="quiet-card" role="dialog" aria-label="Work order" hidden></section>
-  <section class="quiet-card quiet-panel" id="quiet-kv-panel" role="dialog" aria-label="Kvarm connection" hidden></section>
-  <section class="quiet-card quiet-prov" id="quiet-prov" role="dialog" aria-label="Provenance" hidden></section>
+  <section class="quiet-card pop open" id="quiet-card" role="dialog" aria-label="Work order" hidden></section>
+  <section class="quiet-card quiet-panel pop open" id="quiet-kv-panel" role="dialog" aria-label="Kvarm connection" hidden></section>
+  <section class="quiet-card quiet-prov pop open" id="quiet-prov" role="dialog" aria-label="Provenance" hidden></section>
   <span id="quiet-announcement" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></span>
 </div>`,
   script: `
@@ -294,9 +291,6 @@ function quietCheckShort(w) {
 function quietPolGlyph(polarity) {
   return polarity === "must-not" ? "⊘" : "●";
 }
-function quietEvGlyph(ev) {
-  return { declared: "◇", authenticated: "◆", verified: "◈", stopped: "■" }[ev] || "◇";
-}
 function quietCheckRows() {
   const posted = quietState.order.state !== "draft";
   return quietState.witnesses.map((w) => {
@@ -342,7 +336,7 @@ function quietScores(r, source = false) {
 function quietHolderHtml(mini) {
   if (!quietUnmatched()) return "";
   const l = quietState.kvarm.lease, name = '<span class="quiet-bezel" data-evidence-state="unknown" title="no readback">?</span>' + l.holder + '<span class="quiet-say"> · ' + l.session + '</span>';
-  const right = l.gen + ' · passive<span class="quiet-say"> · holds ' + l.gen + ' · no readback</span>';
+  const right = (mini ? 'holds ' + l.gen + ' · ' : '') + 'no readback';
   return mini ? '<div class="quiet-mini" data-state="unknown" data-quiet-binding="holder"><div><span>' + name + '</span><small>' + right + '</small></div></div>'
     : '<div class="quiet-reading" data-state="unknown" data-quiet-binding="holder"><header><b>' + name + '</b><span>' + right + '</span></header><p class="quiet-say">Claimed t-41 in Kvarm with its own token. Acan has no readback for ' + quietState.rev + ', so the territory stays fogged.</p></div>';
 }
@@ -412,7 +406,7 @@ function quietBindingKeys() {
   return ["flag", "budget", ...quietState.witnesses.map((w) => w.id), ...quietData.READBACKS.filter((r) => quietState.arrived.includes(r.session)).flatMap((r) => ["rb:" + r.session, "bot:" + r.bot]), ...(quietUnmatched() ? ["holder"] : [])];
 }
 function quietBindingsHtml() {
-  return quietBindingKeys().map((key) => { const b = quietBinding(key); return '<button data-quiet-prov="' + key + '"><b>' + quietEscape(b.channel) + '</b><span>' + quietEscape(b.value + ' · ' + b.state + ' · ' + b.sourceClass) + '</span></button>'; }).join("");
+  return quietBindingKeys().map((key) => { const b = quietBinding(key); return '<button data-quiet-prov="' + key + '" data-quiet-binding="' + key + '"><b>' + quietEscape(b.channel) + '</b><span>' + quietEscape(b.value + ' · ' + b.state + ' · ' + b.sourceClass) + '</span></button>'; }).join("");
 }
 function quietProvOpen(key, anchor) {
   const b = quietBinding(key);
@@ -557,7 +551,7 @@ function quietRenderCard() {
   const posted = quietState.order.state !== "draft";
   card.innerHTML = (posted ? quietHeader(quietEyebrow(), "", true) + '<div class="quiet-kv' + (quietKvLoud() ? '' : ' quiet-say') + '" id="quiet-kv-card" data-quiet-binding="flag">' + quietStripHtml(3) + '</div>' : quietHeader(quietEyebrow(), "Post an order", false, true)) +
     '<div class="quiet-body">' + (posted ? '<div class="quiet-status quiet-say" id="quiet-claim-session">' + quietEscape(quietClaimLine()) + '</div><p class="quiet-sentence">' + quietEscape(quietState.sentence) + '</p>' : '<div class="quiet-status">DRAFT<span class="quiet-say"> · witnesses become locked on Post</span></div><label for="quiet-sentence">One sentence</label><textarea id="quiet-sentence" rows="2" placeholder="' + quietEscape(quietData.ORDER.placeholder) + '">' + quietEscape(quietState.sentence) + '</textarea>') +
-    (posted ? '<section class="quiet-readbacks"><div class="quiet-section quiet-say">Readbacks · before code</div><div id="quiet-readbacks">' + quietReadbacksHtml() + '</div></section>' : "") +
+    (posted ? '<section class="quiet-readbacks"><div class="quiet-section">Readback · Acan<span class="quiet-say"> · before code</span></div><div id="quiet-readbacks">' + quietReadbacksHtml() + '</div></section>' : "") +
     '<div id="quiet-checks">' + quietCheckRows() + '</div><div class="quiet-locks">' + quietData.ORDER.budgets.map((b) => '<span data-quiet-binding="budget"><span class="quiet-say">' + (posted ? 'Locked' : 'Becomes locked') + ' · </span>' + quietEscape(b) + '</span>').join("") + '</div><div id="quiet-passive">' + quietPassiveHtml() + '</div>' +
     (posted ? '<details class="quiet-bindings" id="quiet-bindings"><summary>Sources <b id="quiet-bindings-count" data-quiet-meta>' + quietBindingKeys().length + '</b><span class="quiet-say">Alt + hover any mark</span></summary><div id="quiet-bindings-list">' + quietBindingsHtml() + '</div></details>' : '<div class="quiet-actions"><span id="quiet-post-note">' + quietPostNote() + '</span><button class="quiet-primary" id="quiet-submit"' + (quietCanPost() ? '' : ' disabled') + '>Post <kbd>Enter</kbd></button></div>') + '</div>';
   if (!posted) {
@@ -574,7 +568,7 @@ function quietRenderCard() {
   }
 }
 function quietPassiveHtml() {
-  return quietUnmatched() ? "" : '<p class="quiet-passive"><b>Codex</b>passive<span class="quiet-say"> · cannot see orders · no MCP</span></p>';
+  return quietUnmatched() ? "" : '<p class="quiet-passive"><b>Codex</b> cannot see orders<span class="quiet-say"> · passive session · no MCP</span></p>';
 }
 function quietPostNote() {
   return quietState.witnesses.length < quietData.WITNESSES.length ? "Pin both witnesses first." : quietState.sentence.trim() ? '<span class="quiet-say">No assignment. Agents claim on a match.</span>' : "Write one sentence.";
@@ -582,15 +576,16 @@ function quietPostNote() {
 function quietRenderDock() {
   const posted = quietState.order.state !== "draft", answered = !!quietState.question.answered;
   $("#quiet-guide").hidden = posted;
-  $("#quiet-hint").hidden = !posted;
-  $("#quiet-hint").textContent = quietState.open ? "Esc close · U log · Alt words" : answered ? "P inspect · U log · Alt words" : "I answer · P inspect · Alt words";
+  $("#quiet-guide").toggleAttribute("data-empty", !quietState.witnesses.length);
+  const hint = $(".hint"), keys = !posted ? "<kbd>M</kbd> pin · <kbd>Shift M</kbd> keep · <kbd>P</kbd> post · <kbd>Alt</kbd> words" : quietState.open ? "<kbd>Esc</kbd> close · <kbd>U</kbd> log · <kbd>Alt</kbd> words" : answered ? "<kbd>P</kbd> order · <kbd>U</kbd> log · <kbd>Alt</kbd> words" : "<kbd>I</kbd> answer · <kbd>P</kbd> order · <kbd>U</kbd> log · <kbd>Alt</kbd> words";
+  if (hint && hint.innerHTML !== keys) hint.innerHTML = keys;
   $("#quiet-dock").hidden = !posted || quietState.open === "order";
   const f = quietFlag(), l = quietState.kvarm.lease, lease = quietLeaseText();
   $("#quiet-plate").innerHTML = '<b data-quiet-binding="flag"' + quietFlagAttrs(f) + '>' + quietEscape(f.text) + '</b><span data-quiet-binding="flag">' + (lease ? '<i class="quiet-lease" title="lease time left">' + lease + '</i>' : '') + '<span class="quiet-say">' + quietEscape((l && l.readback ? l.session + ' · ' : '') + quietData.ORDER.sheet) + '</span></span>';
   const strip = $("#quiet-kv-dock");
   strip.innerHTML = quietStripHtml(2);
   strip.classList.toggle("quiet-say", !quietKvLoud());
-  $("#quiet-mini-readbacks").innerHTML = '<div class="quiet-kv quiet-say"><header><span>' + quietSource() + '</span></header></div>' + quietData.READBACKS.map((r) => {
+  $("#quiet-mini-readbacks").innerHTML = '<div class="quiet-kv"><header><span>readback · Acan<span class="quiet-say">' + quietSource().slice("readback · Acan".length) + '</span></span></header></div>' + quietData.READBACKS.map((r) => {
     const rb = quietReadback(r);
     return '<div class="quiet-mini" data-state="' + rb.state + '" data-quiet-session="' + r.session + '"' + (rb.arrived ? ' data-quiet-binding="rb:' + r.session + '"' : '') + '><div><span>' + (rb.arrived ? '<b class="quiet-choice' + (answered ? ' quiet-say' : '') + '">' + rb.choice + '</b>' : '') + '<span class="quiet-agent">' + r.agent + (r.agent === "Droid" ? '<span class="quiet-say"> · second session</span>' : '') + '</span></span><small>' + quietTally(r, rb) + '</small></div>' + quietScores(r) + '</div>';
   }).join("") + quietHolderHtml(true);
@@ -634,7 +629,7 @@ function quietBotChip(r) {
   if (!c) { c = document.createElement("div"); c.className = "chip quiet-bot"; c.dataset.id = r.bot; $("#chips").appendChild(c); }
   const ev = live ? l.evidence : bot.state === "dark" ? "stopped" : "declared";
   c.dataset.state = bot.state; c.dataset.quietBinding = "bot:" + r.bot;
-  c.innerHTML = '<span class="mono">' + bot.mono + '</span>' + r.agent + '<i class="quiet-ev" title="' + ev + '">' + quietEvGlyph(ev) + '</i><small class="quiet-say">' + r.session + ' · ' + ev + '</small><span class="rd">' + bot.reading + '</span>';
+  c.innerHTML = '<span class="mono">' + bot.mono + '</span>' + r.agent + '<i class="quiet-ev">' + ev + '</i><small class="quiet-say">' + r.session + '</small><span class="rd">' + bot.reading + '</span>';
 }
 function quietPin(keep) {
   if (quietState.order.state !== "draft") return quietAnnounce("Posted witnesses are locked.");
@@ -658,8 +653,8 @@ function quietDispatched() {
   quietAt(U.pollMs, () => quietSend("get_task", null, () => {
     kv.lease = { gen: quietData.KV.generation, holder: U.holder, session: U.session, evidence: U.evidence, readback: false, state: "live", renewedAt: quietKvMs };
     const chip = document.querySelector('.chip[data-id="bot-cx"]');
-    if (chip) { chip.dataset.quietBinding = "holder"; chip.innerHTML = '<span class="mono">CX</span>' + U.holder + '<i class="quiet-ev" title="' + U.evidence + ' · no readback">' + quietEvGlyph(U.evidence) + '</i>' + kv.lease.gen + '<small class="quiet-say">' + U.session + ' · ' + U.evidence + ' · holds ' + kv.lease.gen + '</small><span class="rd">no readback</span>'; }
-    $(".bl .wait").insertAdjacentHTML("afterend", '<button class="agent quiet-holder" id="quiet-holder-row" data-quiet-binding="holder">' + DRONE_ICON_JS + '<strong>' + U.holder + '</strong> unmatched<span class="quiet-say">holds ' + kv.lease.gen + ' · Kvarm</span></button>');
+    if (chip) { chip.dataset.quietBinding = "holder"; chip.innerHTML = '<span class="mono">CX</span>' + U.holder + ' holds ' + kv.lease.gen + '<i class="quiet-ev">' + U.evidence + '</i><small class="quiet-say">' + U.session + '</small><span class="rd">no readback</span>'; }
+    $(".bl .wait").insertAdjacentHTML("afterend", '<button class="agent quiet-holder" id="quiet-holder-row" data-quiet-binding="holder">' + DRONE_ICON_JS + '<strong>' + U.holder + '</strong> unmatched · holds ' + kv.lease.gen + '<span class="quiet-say">no readback · Kvarm</span></button>');
     $("#quiet-holder-row").onclick = () => { if (quietActive()) quietOpen("order", quietData.ORDER.on); };
     layoutChips(); quietUpdateReadbacks();
     quietAnnounce("Kvarm reports " + U.holder + " holds " + kv.lease.gen + " with no readback. The order stays unclaimed.", U.holder + " holds " + kv.lease.gen + " with no readback.");
