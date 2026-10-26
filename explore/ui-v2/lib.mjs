@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const KIT = "/home/factory-user/.factory/skills/anatomy/kit/iso-kit.mjs";
+const KIT = new URL("./vendor/anatomy/iso-kit.mjs", import.meta.url);
 
 export function runtimeScript() {
   const kit = readFileSync(KIT, "utf8");

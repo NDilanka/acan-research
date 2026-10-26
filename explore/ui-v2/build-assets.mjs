@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ISO_CSS } from "/home/factory-user/.factory/skills/anatomy/kit/iso-kit.mjs";
+import { ISO_CSS } from "./vendor/anatomy/iso-kit.mjs";
 import { ASSETS, DEFERRED, FAMILIES } from "./assets.mjs";
 import { runtimeScript, STATE_CSS, FOG_DEFS } from "./lib.mjs";
 

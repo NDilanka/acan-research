@@ -1,4 +1,4 @@
-import * as kit from "/home/factory-user/.factory/skills/anatomy/kit/iso-kit.mjs";
+import * as kit from "../vendor/anatomy/iso-kit.mjs";
 import { WORLD } from "./world-data.mjs";
 import { ACQUIT } from "../acquit.mjs";
 import { ASSETS } from "../assets.mjs";

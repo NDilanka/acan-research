@@ -1,4 +1,4 @@
-import * as k from "/home/factory-user/.factory/skills/anatomy/kit/iso-kit.mjs";
+import * as k from "./vendor/anatomy/iso-kit.mjs";
 import { ASSETS } from "./assets.mjs";
 import { renderScene, projectionFor } from "./scene.mjs";
 import { GHOSTS, STAGES, CATALOG_DEFAULTS } from "./acquit.mjs";

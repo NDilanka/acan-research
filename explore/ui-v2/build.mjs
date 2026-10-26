@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ISO_CSS } from "/home/factory-user/.factory/skills/anatomy/kit/iso-kit.mjs";
+import { ISO_CSS } from "./vendor/anatomy/iso-kit.mjs";
 import { runtimeScript, STATE_CSS, FOG_DEFS } from "./lib.mjs";
 import { ACQUIT, INSPECT } from "./acquit.mjs";
 import { BP_HTML, BP_CSS, BP_SCRIPT } from "./blueprint.mjs";
