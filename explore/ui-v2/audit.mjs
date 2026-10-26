@@ -13,10 +13,106 @@ import { inflateSync } from "node:zlib";
 
 // Extension point for new rules (word budgets, island positions). Each entry is
 // { rule, check(api) } where check runs inside the page, so it must be self-contained source that
-// uses only its argument and browser globals. api is { cfg, W, H, items, sel, squash, shown, inView, cs }:
+// uses only its argument and browser globals. api is { cfg, W, H, items, sel, squash, shown, inView, cs, stats }:
 // items are the visible text runs { p, text, rects, fontPx, ... }, and cfg is CONFIG below, so put a
-// rule's settings there. check returns [{ selector, text, value, limit, detail, unknown? }].
-export const PAGE_RULES = [];
+// rule's settings there. stats records measurements even on exempt beats.
+// check returns [{ selector, text, value, limit, detail, unknown? }].
+export const PAGE_RULES = [{ rule: "text-budget", check: function ({ cfg, W, H, cs, squash, stats }) {
+  // TEXT.md's counter walks raw text, not items, which truncates copy and includes key caps.
+  const P = CSS.escape(document.body.dataset.concept || new URLSearchParams(location.hash.slice(1)).get("c") || "audit");
+  const B = cfg.textBudget;
+  const SURFACE = [
+    ["toast", "#toast"],
+    ["palette", "#pal"],
+    ["pill", "#chips .chip,." + P + "-mark,.egress"],
+    ["card", "#" + P + "-card,#" + P + "-dock,#" + P + "-guide,#" + P + "-kv-panel,#" + P + "-prov,#insp,.pop"],
+    ["island", ".fl,#nav,.hint,#watermark,#cbar,#rpdeck,.simdeck"],
+    ["plant", "#stage"],
+  ];
+  const ROW = ".bl .wait,.bl .agent,.bl .tl,." + P + "-reading,." + P + "-mini,." + P + "-check,." + P + "-kv-row,." + P + "-answer,." + P + "-bindings summary,." + P + "-bindings button,#" + P + "-guide button,.pal-list>*";
+  const CHOICE = "." + P + "-answer,.pal-row";
+  const SKIP = "script,style,title,desc,defs,noscript,textarea,input,select,option,kbd,.mono,.pal-row .ic,[data-text=glyph]";
+  const USER = "[data-text=user],." + P + "-sentence";
+  const LAYER = "#" + P + "-prov,#" + P + "-kv-panel,#net,#layers,#ex";
+  const units = new Set(["B", "KB", "MB", "GB", "ms", "s", "S", "min", "m", "h", "%", "rps"]);
+  const wordsOf = (s) => {
+    const out = [], toks = s.split(/\s+/).filter(Boolean);
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i];
+      if (!/[\p{L}\p{N}]/u.test(t)) continue;
+      if (units.has(t.replace(/[.,;:)]+$/, "")) && i > 0 && /\d[.,;:]?$/.test(toks[i - 1])) continue;
+      out.push(t);
+    }
+    return out;
+  };
+  const textShown = (el) => {
+    let o = 1;
+    for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+      const s = cs(n);
+      if (s.display === "none" || s.visibility !== "visible" || s.contentVisibility === "hidden") return false;
+      o *= +s.opacity; if (o < 0.05) return false;
+      const d = n.parentElement;
+      if (d && d.tagName === "DETAILS" && !d.open && n.tagName !== "SUMMARY") return false;
+    }
+    return true;
+  };
+  const cls = (kind, el) => kind === "card" ? (el.matches("[data-empty]") ? "empty" : el.matches("#" + P + "-dock,#" + P + "-guide") ? "rest" : "card")
+    : kind === "island" ? (el.matches(".fl.bl") ? "queue" : el.matches("#rpdeck,.simdeck") ? "deck" : "island") : kind;
+  const inside = (x, y, r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  const covers = [...document.querySelectorAll(SURFACE.slice(0, 5).map(([, s]) => s).join(","))].filter((e) => !e.closest("#stage") && textShown(e) && e.getClientRects().length).map((e) => e.getBoundingClientRect());
+  const clipped = (el, x, y) => { for (let n = el; n && n !== document.body; n = n.parentElement) if (cs(n).overflow !== "visible" && !inside(x, y, n.getBoundingClientRect())) return true; return false; };
+  const keyOf = (el) => {
+    const parts = [];
+    for (let n = el; n; n = n.parentElement) {
+      if (n.id) { parts.unshift("#" + CSS.escape(n.id)); break; }
+      let part = n.localName + [...n.classList].slice(0, 2).map((c) => "." + CSS.escape(c)).join("");
+      const siblings = n.parentElement && [...n.parentElement.children].filter((e) => e.localName === n.localName);
+      if (siblings && siblings.length > 1) part += ":nth-of-type(" + (siblings.indexOf(n) + 1) + ")";
+      parts.unshift(part);
+      if (n === document.body) break;
+    }
+    return parts.join(" > ");
+  };
+  const r = { total: 0, user: 0, layer: document.body.classList.contains("alt") || [...document.querySelectorAll(LAYER)].some((e) => textShown(e) && e.getClientRects().length), cap: document.querySelector("[data-team]") ? B.screen : B.solo, kinds: {}, surfaces: [], rows: [] };
+  const surfaces = new Map(), rows = new Map();
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let t; (t = walk.nextNode());) {
+    const el = t.parentElement, words = wordsOf(t.textContent);
+    if (!words.length || !el || el.closest(SKIP) || !textShown(el)) continue;
+    const range = document.createRange(); range.selectNodeContents(t);
+    const rect = [...range.getClientRects()].find((a) => a.width > 1 && a.height > 1 && a.right > 0 && a.bottom > 0 && a.left < W && a.top < H);
+    if (!rect) continue;
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    if (clipped(el, cx, cy)) continue;
+    if (el.closest("#stage") && covers.some((a) => inside(cx, cy, a))) continue;
+    if (el.closest(USER)) { r.user += words.length; continue; }
+    let surf = null, kind = "other";
+    for (let n = el; n && !surf; n = n.parentElement) { const hit = SURFACE.find(([, s]) => n.matches(s)); if (hit) { surf = n; kind = hit[0]; } }
+    const s = surfaces.get(surf) || { kind, cls: surf ? cls(kind, surf) : "other", key: surf ? keyOf(surf) : "body", words: 0, text: [] };
+    s.words += words.length; s.text.push(words.join(" ")); surfaces.set(surf, s);
+    r.total += words.length;
+    r.kinds[s.cls] = (r.kinds[s.cls] || 0) + words.length;
+    const row = el.closest(ROW);
+    if (row) { const a = rows.get(row) || { key: keyOf(row), cls: row.matches(CHOICE) ? "choice" : "row", words: 0, text: [] }; a.words += words.length; a.text.push(words.join(" ")); rows.set(row, a); }
+  }
+  r.surfaces = [...surfaces.values()].map((s) => ({ ...s, text: s.text.join(" | ") }));
+  r.rows = [...rows.values()].map((a) => ({ ...a, text: a.text.join(" ") }));
+  stats.textBudget = r;
+  if (r.layer) return [];
+  const out = [];
+  const judge = (kind, selector, value, limit, text = "") => {
+    if (value > limit) out.push({ selector, text: squash(text), value, limit, detail: kind + " " + value + " > " + limit });
+  };
+  judge("screen", "body", r.total, r.cap);
+  let plant = 0;
+  for (const s of r.surfaces) {
+    if (s.cls === "plant") { plant += s.words; continue; }
+    judge(s.cls, s.key, s.words, B[s.cls], s.text);
+  }
+  judge("plant", "#stage", plant, B.plant);
+  for (const a of r.rows) judge(a.cls, a.key, a.words, B[a.cls], a.text);
+  return out;
+} }];
 
 export const RULES = ["type-floor", "overlap", "offscreen", "contrast", "focus-ring", "transition", "egress-sum", "focus-steal", ...PAGE_RULES.map((r) => r.rule)];
 
@@ -51,6 +147,7 @@ const CONFIG = {
   surfaces: "[role=dialog],dialog[open],[aria-modal=true],.pop.open,#insp.open,#toast.on,[class*=card],[class*=panel],[class*=plate],[class*=popover],[class*=sheet],[id*=card],[id*=Card],[id*=panel],[id*=Panel],[id*=plate]",
   motion: MOTION_ALLOW,
   egress: EGRESS,
+  textBudget: { pill: 6, row: 8, choice: 12, toast: 8, island: 12, queue: 24, deck: 30, card: 60, rest: 24, empty: 20, palette: 40, plant: 20, other: 0, screen: 150, solo: 136 },
 };
 
 // Runs in the page. Everything it needs is inside it, because it is sent as source text.
@@ -382,7 +479,7 @@ function pageAudit(cfg, extra) {
     moving.push([it.p, it.p.getBoundingClientRect()]);
   }
   for (const [rule, check] of extra) {
-    try { for (const f of check({ cfg, W, H, items, sel, squash, shown, inView, cs }) || []) { const u = f.unknown; delete f.unknown; (u ? unknown : findings).push({ rule, ...f }); } }
+    try { for (const f of check({ cfg, W, H, items, sel, squash, shown, inView, cs, stats }) || []) { const u = f.unknown; delete f.unknown; (u ? unknown : findings).push({ rule, ...f }); } }
     catch (e) { unknown.push({ rule, selector: "", text: "", detail: "rule threw: " + e.message }); }
   }
   lap("contrast+rules");
@@ -650,15 +747,62 @@ button{position:absolute;background:#000;color:#fff;border:1px solid #555;font:1
 .glass{position:absolute;left:40px;top:240px;width:260px;height:36px;background:#fff}.glass>div{position:absolute;inset:0;background:rgba(0,0,0,.85)}
 #fxKeep,.keep{outline:none}#fxKeep:focus-visible,.keep:focus-visible{outline:2px solid #fff}
 @keyframes fxPulse{to{opacity:.6}}`;
-const kvLog = (pill, total, rows) => `<span class="egress">local + kvarm · ${pill} B out</span><div id="gateKv"><header><span>log · ${rows.length} ops</span> <b>${total} B</b></header>${rows.map((b, i) => `<div class="gate-kvlog-row"><b>op ${i + 1}</b> <i>${b} B</i></div>`).join("")}</div>`;
+const kvLog = (pill, total, rows) => `<span class="egress">local + kvarm · ${pill} B out</span><div id="gateKv" class="pop"><header><span>log · ${rows.length} ops</span> <b>${total} B</b></header>${rows.map((b, i) => `<div class="gate-kvlog-row"><b>op ${i + 1}</b> <i>${b} B</i></div>`).join("")}</div>`;
 const fixturePage = (body) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>audit fixture</title><style>${FIXTURE_CSS}</style></head><body>${body}</body></html>`;
+const fixtureWords = (n) => Array(n).fill("word").join(" ");
+const budgetCard = (n) => `<div id="fxBudgetCard" class="pop" style="position:absolute;left:800px;top:430px;width:400px">${fixtureWords(n)}</div>`;
+const budgetScreen = (n, team = false) => (team ? "<i data-team></i>" : "") + [50, 50, n - 100].map((words, i) => `<div id="fxBudget${i}" class="pop" style="position:absolute;left:${40 + 500 * i}px;top:40px;width:400px">${fixtureWords(words)}</div>`).join("");
+const TEXT_CASES = [
+  { shot: "card-over-budget", html: budgetCard(61), total: 61, findings: [["#fxBudgetCard", "card 61 > 60", 61, 60]] },
+  { shot: "card-at-budget", html: budgetCard(60), total: 60 },
+  { shot: "excluded-copy", total: 60, user: 7, html: `<div id="fxBudgetCard" class="pop" style="position:absolute;left:40px;top:40px;width:700px">
+${fixtureWords(58)} éclair 1,336 B · → %
+<span data-text="user">user wrote this</span><span class="quiet-sentence">four user written words</span>
+<kbd>${fixtureWords(20)}</kbd><span class="mono">${fixtureWords(20)}</span><span data-text="glyph">${fixtureWords(20)}</span>
+<div class="pal-row"><span class="ic">${fixtureWords(20)}</span></div>
+<div id="quiet-prov" hidden>${fixtureWords(80)}</div><div id="quiet-kv-panel" style="display:none">${fixtureWords(80)}</div>
+<div style="visibility:hidden">${fixtureWords(80)}</div><div style="content-visibility:hidden">${fixtureWords(80)}</div>
+<div style="opacity:.1"><span style="opacity:.1">${fixtureWords(80)}</span></div>
+<details style="position:fixed;left:40px;top:700px;width:700px"><summary><kbd>Alt</kbd></summary><div>${fixtureWords(80)}</div></details>
+<textarea>${fixtureWords(20)}</textarea><input value="ignored input"><select><option>ignored option</option></select>
+<script type="application/json">${JSON.stringify(fixtureWords(80))}</script></div>` },
+  ...[[136, false], [137, false], [137, true], [150, true], [151, true]].map(([n, team]) => ({
+    shot: (team ? "team-" : "solo-") + n, html: budgetScreen(n, team), total: n, cap: team ? 150 : 136,
+    findings: n > (team ? 150 : 136) ? [["body", "screen " + n + " > " + (team ? 150 : 136), n, team ? 150 : 136]] : [],
+  })),
+  { shot: "row-at-budget", html: `<div class="pop"><div id="fxRow" class="quiet-reading">${fixtureWords(8)}</div></div>`, total: 8 },
+  { shot: "row-over-budget", html: `<div class="pop"><div id="fxRow" class="quiet-reading">${fixtureWords(9)}</div></div>`, total: 9, findings: [["#fxRow", "row 9 > 8", 9, 8]] },
+  { shot: "choice-at-budget", html: `<div class="pop"><div id="fxChoice" class="quiet-answer">${fixtureWords(12)}</div></div>`, total: 12 },
+  { shot: "choice-over-budget", html: `<div class="pop"><div id="fxChoice" class="quiet-answer">${fixtureWords(13)}</div></div>`, total: 13, findings: [["#fxChoice", "choice 13 > 12", 13, 12]] },
+  ...[
+    ["pill", "fxSurface", 'class="quiet-mark"', 7, 6],
+    ["toast", "toast", "", 9, 8],
+    ["island", "fxSurface", 'class="fl"', 13, 12],
+    ["queue", "fxSurface", 'class="fl bl"', 25, 24],
+    ["deck", "rpdeck", "", 31, 30],
+    ["rest", "quiet-dock", "", 25, 24],
+    ["empty", "quiet-guide", "data-empty", 21, 20],
+    ["palette", "pal", "", 41, 40],
+    ["plant", "stage", "", 21, 20],
+    ["other", "fxSurface", "", 1, 0],
+  ].map(([kind, id, attrs, n, cap]) => ({
+    shot: kind + "-over-budget", html: `<div id="${id}" ${attrs}>${fixtureWords(n)}</div>`, total: n,
+    findings: [[kind === "other" ? "body" : "#" + id, kind + " " + n + " > " + cap, n, cap]],
+  })),
+  { shot: "clipped-copy", total: 0, html: `<div class="pop" style="position:absolute;left:40px;top:40px;width:100px;height:30px;overflow:hidden"><span style="position:absolute;left:200px;white-space:nowrap">${fixtureWords(80)}</span></div><div class="pop" style="position:absolute;left:1800px">${fixtureWords(80)}</div>` },
+  { shot: "covered-stage", total: 2, html: `<div id="stage"><span style="position:absolute;left:40px;top:40px">${fixtureWords(30)}</span><span style="position:absolute;left:40px;top:140px">plant</span></div><div class="fl" style="position:absolute;left:40px;top:40px;width:1200px;height:30px;background:#000">island</div>` },
+  { shot: "alt-reveal", html: budgetCard(61), total: 61, layer: true, alt: true },
+  ...["quiet-prov", "quiet-kv-panel", "net", "layers", "ex"].map((id) => ({
+    shot: id + "-reveal", html: budgetCard(61) + `<div id="${id}" style="width:20px;height:20px"></div>`, total: 61, layer: true,
+  })),
+];
 
 // #fxGlass and #fxGlassOk sit on an 85% black layer over white. Reading the nearest opaque background
 // would call black-on-it 21:1 and white-on-it 1:1; the composited shot gives 1.4:1 and 15:1.
 // #fxMid and #fxLarge share #7a7a7a (4.4:1): it fails at 14 px and passes the 3:1 large-text bar at 24 px.
 const FIXTURES = {
   broken: {
-    html: fixturePage(`
+    html: fixturePage(`<div class="pop">
 <div class="a" id="fxTiny" style="left:40px;top:40px;font-size:9px">tiny text</div>
 <div class="a" style="left:40px;top:70px;transform:scale(.7);transform-origin:0 0"><span id="fxShrunk">shrunk text</span></div>
 <svg class="a" style="left:40px;top:100px" width="200" height="30"><text id="fxSvgTiny" x="0" y="40" font-size="20" transform="scale(.45)" fill="#e6e6e6">svg tiny</text></svg>
@@ -673,8 +817,10 @@ const FIXTURES = {
 <button id="fxRing" style="left:400px;top:200px;outline:none">no ring</button>
 ${[1, 2].map((i) => `<button id="fxRing${i + 1}" style="left:${400 + i * 110}px;top:340px;outline:none">no ring ${i + 1}</button>`).join("")}
 ${[1, 2, 3].map((i) => `<button class="keep" style="left:${700 + i * 90}px;top:340px">ring ${i}</button>`).join("")}
+</div>
 ${kvLog(100, 150, [100, 40])}
-<div role="dialog" id="fxCard" style="left:1450px">card past the edge</div>`),
+<div role="dialog" id="fxCard" class="pop" style="left:1450px">card past the edge</div>
+${budgetCard(61)}`),
     steps: [
       { eval: "setTimeout(() => document.querySelector('#fxRing').focus(), 100); true", expect: true },
       { wait: 400 },
@@ -693,11 +839,12 @@ ${kvLog(100, 150, [100, 40])}
       transition: [/#fxMove/, /#fxPulse/],
       "egress-sum": [/^\.egress$/, /#gateKv/, /^\.egress$/],
       "focus-steal": [/#fxRing/],
+      "text-budget": [/^#fxBudgetCard$/],
     },
     focusedRing: /#fxRing2$/,
   },
   clean: {
-    html: fixturePage(`
+    html: fixturePage(`<div class="pop">
 <div class="a" id="fxFloor" style="left:40px;top:40px;font-size:11px">eleven px text</div>
 <div class="a" style="left:40px;top:70px;transform:scale(.75);transform-origin:0 0"><span id="fxScaled" style="font-size:16px">scaled to 12 px</span></div>
 <svg class="a" style="left:40px;top:100px" width="200" height="30"><text id="fxSvgOk" x="0" y="50" font-size="30" transform="scale(.4)" fill="#e6e6e6">svg at 12 px</text></svg>
@@ -711,8 +858,9 @@ ${kvLog(100, 150, [100, 40])}
 <div class="a" id="fxSlide" style="left:40px;top:300px;color:#333">sliding text</div>
 <button id="fxKeep" style="left:400px;top:200px">kept ring</button>
 ${[1, 2, 3, 4, 5, 6, 7, 8].map((i) => `<button class="keep" style="left:${400 + i * 90}px;top:340px">ring ${i}</button>`).join("")}
+</div>
 ${kvLog(140, 140, [100, 40])}
-<div role="dialog" id="fxCardOk" style="left:1200px">card in view</div>
+<div role="dialog" id="fxCardOk" class="pop" style="left:1200px">card in view</div>
 <script>const slide = document.querySelector("#fxSlide"); (function tick(t) { slide.style.left = 40 + (t / 4) % 100 + "px"; requestAnimationFrame(tick); })(0);</script>`),
     steps: [
       { eval: "document.querySelector('#fxKeep').focus(); setTimeout(() => { const o = document.querySelector('#fxKeep'), n = o.cloneNode(true); o.replaceWith(n); n.focus(); }, 100); true", expect: true },
@@ -730,6 +878,15 @@ ${kvLog(140, 140, [100, 40])}
       ["contrast", /#fxSlide/, "text moving at the shot is contrast unknown, not a finding"],
     ],
     stack: true,
+  },
+  text: {
+    html: fixturePage(""),
+    steps: TEXT_CASES.flatMap((c) => [
+      { eval: `document.body.dataset.concept='quiet';document.body.classList.toggle('alt',${!!c.alt});document.body.innerHTML=${JSON.stringify(c.html)};true`, expect: true },
+      { shot: c.shot },
+    ]),
+    expect: { "text-budget": TEXT_CASES.flatMap((c) => (c.findings || []).map(([selector]) => new RegExp("^" + selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"))) },
+    budgets: TEXT_CASES,
   },
 };
 
@@ -751,6 +908,12 @@ function selftest(dir) {
       checks.push([`${name}: ${rule} ${got.length} findings, want ${want.length}` + (planted ? "" : " (no planted case in FIXTURES.broken.expect)") + got.map((f) => " · " + f.selector + " " + (f.value || f.detail) + (f.limit ? " vs " + f.limit : "")).join(""), ok]);
     }
     for (const [rule, re, what] of fx.unknown || []) checks.push([name + ": " + what, unk.some((u) => u.rule === rule && re.test(u.selector))]);
+    for (const c of fx.budgets || []) {
+      const a = s.audits.find((a) => a.shot === c.shot), b = a && a.stats.textBudget;
+      checks.push([`${name}: ${c.shot} counts ${c.total} product words, ${c.user || 0} user words, cap ${c.cap || 136}, reveal ${!!c.layer}`, !!b && b.total === c.total && b.user === (c.user || 0) && b.cap === (c.cap || 136) && b.layer === !!c.layer]);
+      const got = a ? a.findings.filter((f) => f.rule === "text-budget") : [], want = c.findings || [];
+      checks.push([name + ": " + c.shot + " reports exactly the budget overruns with measured values and limits", !!a && !a.unknown.some((u) => u.rule === "text-budget") && got.length === want.length && want.every(([selector, detail, value, limit]) => got.some((f) => f.selector === selector && f.detail === detail && f.value === value && f.limit === limit))]);
+    }
     const focusRuns = s.audits.filter((a) => /-focus$/.test(a.shot));
     if (focusRuns.length > 1) checks.push([name + ": a repeat focus audit reuses verdicts and reports the same findings", focusRuns[1].stats.reused >= 2 && focusRuns[1].findings.length === focusRuns[0].findings.length]);
     if (fx.focusedRing) checks.push([name + ": the control with real focus is judged on its own look", all.some((f) => f.rule === "focus-ring" && fx.focusedRing.test(f.selector) && /has focus now/.test(f.detail))]);

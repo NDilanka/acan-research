@@ -40,10 +40,12 @@ for (const f of files) {
     const b = spawnSync(process.execPath, ["build.mjs", id], opts);
     const d = b.status === 0 ? spawnSync(process.execPath, ["drive.mjs", `live-${id}.html`, hash, f, out], opts) : null;
     log = (b.stdout + b.stderr) + (d ? d.stdout + d.stderr : "");
-    const ok = d && d.status === 0 && /^OK/m.test(d.stdout);
+    const stepsOk = d && /^OK/m.test(d.stdout);
+    const audit = d && /^AUDIT NOT OK.*$/m.exec(d.stdout);
+    const ok = stepsOk && d.status === 0;
     if (!ok) fail = 1;
-    const why = ok ? "" : ": " + ((log.match(/^.*(FAIL|Error|expected).*$/m) || [log.trim().split("\n").pop() || ""])[0]).slice(0, 200);
-    console.log(`${name} ${ok ? "OK" : "FAIL"}${why}`);
+    const why = stepsOk ? (audit ? ", " + audit[0] : "") : ": " + ((log.match(/^.*(FAIL|Error|expected).*$/m) || [log.trim().split("\n").pop() || ""])[0]).slice(0, 200);
+    console.log(`${name} ${stepsOk ? "OK" : "FAIL"}${why}`);
   } finally {
     rmSync(lock, { recursive: true, force: true });
   }
