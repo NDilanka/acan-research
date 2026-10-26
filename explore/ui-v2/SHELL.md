@@ -152,7 +152,7 @@ These were measured in the builds and are not fixed by the shell.
 - **Concept cards are not in the card slot.** Measured at 1280 x 800: orders card left 360 to 720 and 470 wide; clash card `[592,170,560,556]`; gate card left 692 and 460 wide; bench card `[16,100,466,...]`; gate station `[16,100,400,508]`; orders guide `[16,100,288,381]`. Rule 7 fails for all of them. Moving them is concept work.
 - **The orders card scrolls at 1280 x 800.** Rule 7 fails.
 - **The clash hint collides with the rail at 1280 x 800.** `#clashToolbar` shifts a 730 px hint so that its right edge passes `#nav` left. Rule 6 fails. The fix is shorter hint copy or a toolbar that leaves the strip row.
-- **The clash audit card goes off-screen at 1440 x 900** at the step "One table, two migrations · history advisory".
+- **A clash pin label goes off-screen at 1440 x 900** at the step "One table, two migrations · history advisory" (`.clash-pin-label`, left about -6). The open card itself stays on-screen.
 - **`.fl.bl` is 168 tall.** It cuts 120 px into the free rect's bottom-left corner. The world level's `.world-bl` is one row tall, as `JOURNEY.md` asks.
 - **The world bottom-right island is wider than the ui-v1 one** (936 to 1151 at 1600 against 570) because it carries the connection readout inline.
 - **Replay deck and inspector type** is 9 to 10.5 px. Rule 12 fails.

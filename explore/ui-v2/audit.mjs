@@ -5,7 +5,7 @@
 // Unknowns are reported next to findings and are never counted as passes.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -111,6 +111,112 @@ export const PAGE_RULES = [{ rule: "text-budget", check: function ({ cfg, W, H, 
   }
   judge("plant", "#stage", plant, B.plant);
   for (const a of r.rows) judge(a.cls, a.key, a.words, B[a.cls], a.text);
+  return out;
+} }, { rule: "island", check: function ({ W, H, sel, squash, shown, cs, stats }) {
+  const defaults = { inset: 16, row: 40, gap: 8, strip: 28, below: 100, card: 392, rail: 96, slot: 64 };
+  const source = typeof SHELL === "object" && SHELL || {};
+  const T = Object.fromEntries(Object.entries(defaults).map(([k, v]) => [k, Number.isFinite(source[k]) ? source[k] : v]));
+  const tolerance = 1, out = [];
+  const visible = (e) => {
+    if (!shown(e)) return false;
+    for (let n = e; n; n = n.parentElement) if (cs(n).contentVisibility === "hidden" || cs(n).display === "none") return false;
+    const r = e.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  };
+  const all = (s) => [...document.querySelectorAll(s)].filter(visible);
+  const rect = (e) => e.getBoundingClientRect();
+  const label = (e) => e.id ? sel(e) : e.matches(".fl") ? "." + [...e.classList].filter((c) => c === "fl" || /^(tl|tc|tr|bl|br)$/.test(c)).join(".") : sel(e);
+  const num = (n) => Math.round(n * 100) / 100;
+  const finding = (check, e, detail, value, limit) => out.push({ selector: label(e), text: squash(e.textContent), value, limit, detail: check + " " + label(e) + " " + detail });
+  const measure = (check, e, edge, want, relation = "=") => {
+    const value = rect(e)[edge];
+    if (relation === "<=" ? value > want + tolerance : Math.abs(value - want) > tolerance)
+      finding(check, e, edge + " " + num(value) + " " + (relation === "<=" ? ">" : "!=") + " " + num(want), num(value), num(want));
+  };
+  const each = (s, check, edges) => { for (const e of all(s)) for (const [edge, want] of Object.entries(edges)) measure(check, e, edge, want); };
+  const hints = all("body>.hint,.world-hint");
+  const top = ".fl.tl,.fl.tc,.fl.tr,.world-tl,.world-modes,.world-tr";
+  const left = ".fl.tl,.fl.bl,.world-tl,.world-bl,#worldQueue";
+  const right = ".fl.tr,.fl.br,#nav,.world-tr,.world-br,#worldMinimap,.insp.open,#worldCard,#worldNetwork";
+  const chrome = all(".fl,body>.hint,.world-hint,#nav,#worldMinimap,[data-hint-row],#layers,#worldLayers");
+  // Named surfaces exclude plant pins and the full-screen palette backdrop.
+  const cards = all(".insp.open,#worldCard,#worldNetwork,#worldInspector,#worldProvenance,.world-panel:not(#worldQueue):not(#worldPalette),.orders-card,.orders-dock,.orders-guide,.quiet-card,.quiet-dock,.quiet-guide,.clash-card,.clash-order,.bench-card,.bench-order,.gate-card,.gate-station,.gate-brief");
+  const queue = all("#worldQueue");
+  each(left, "edges", { left: T.inset });
+  each(right, "edges", { right: W - T.inset });
+  each(top, "top-row", { top: T.inset, height: T.row });
+  each("body>.hint,.world-hint", "strip-row", { top: T.slot, height: T.strip });
+  each("#nav,#compass,#worldMinimap,#layers,#worldLayers,[data-hint-row]", "strip-row", { top: T.slot });
+  each(".fl.br,.world-bl,.world-br", "bottom-row", { bottom: H - T.inset, height: T.row });
+  each(".fl.bl:not(.world-bl)", "bottom-row", { bottom: H - T.inset, height: 168 });
+  for (const e of all(".fl.tc,.world-modes,body>.hint,.world-hint")) {
+    const r = rect(e), centre = r.left + r.width / 2;
+    if (Math.abs(centre - W / 2) <= tolerance) continue;
+    const strips = hints.includes(e) ? all("[data-hint-row]") : [];
+    if (strips.length) measure("centre-line", e, "left", Math.max(...strips.map((s) => rect(s).right)) + T.gap);
+    else finding("centre-line", e, "centre " + num(centre) + " != " + num(W / 2), num(centre), W / 2);
+  }
+  const intersects = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > tolerance && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > tolerance;
+  const painted = (e) => {
+    const r = rect(e), p = { left: Math.max(0, r.left), top: Math.max(0, r.top), right: Math.min(W, r.right), bottom: Math.min(H, r.bottom) };
+    for (let n = e.parentElement; n; n = n.parentElement) {
+      const s = cs(n), q = rect(n);
+      if (s.overflowX !== "visible") { p.left = Math.max(p.left, q.left); p.right = Math.min(p.right, q.right); }
+      if (s.overflowY !== "visible") { p.top = Math.max(p.top, q.top); p.bottom = Math.min(p.bottom, q.bottom); }
+    }
+    return p;
+  };
+  const pairs = new Set();
+  const clash = (a, b, gap) => {
+    if (a === b || a.contains(b) || b.contains(a)) return;
+    const key = [sel(a), sel(b)].sort().join("|");
+    if (pairs.has(key)) return;
+    pairs.add(key);
+    const A = rect(a), B = rect(b), P = painted(a), Q = painted(b);
+    // A scroll container clips overlap, but the slot checks still measure the whole card.
+    if (intersects(P, Q)) finding("gaps", a, "overlaps " + label(b) + " by " + num(Math.min(P.right, Q.right) - Math.max(P.left, Q.left)) + "x" + num(Math.min(P.bottom, Q.bottom) - Math.max(P.top, Q.top)) + " px", "overlap", "no overlap");
+    else if (gap && (Math.abs(A.top - B.top) <= tolerance || Math.abs(A.bottom - B.bottom) <= tolerance)) {
+      const d = Math.max(A.left, B.left) - Math.min(A.right, B.right);
+      if (d < T.gap - tolerance) finding("gaps", a, "gap to " + label(b) + " " + num(d) + " < " + T.gap, num(d), T.gap);
+    }
+  };
+  for (let i = 0; i < chrome.length; i++) for (let j = i + 1; j < chrome.length; j++) clash(chrome[i], chrome[j], true);
+  for (const c of [...cards, ...queue]) for (const e of chrome) clash(c, e, false);
+  for (const h of hints) for (const nav of all("#nav,#worldMinimap")) measure("gaps", h, "right", rect(nav).left - T.gap, "<=");
+  for (const c of cards) {
+    for (const [edge, want] of Object.entries({ left: W - T.inset - T.card, top: T.below, width: T.card })) measure("card-slot", c, edge, want);
+    measure("card-slot", c, "bottom", H - T.slot, "<=");
+    if (W === 1280 && H === 800) {
+      const scrolls = [c, ...c.querySelectorAll("*")].filter((e) => e === c || visible(e) && /auto|scroll/.test(cs(e).overflowY));
+      for (const e of scrolls) if (e.scrollHeight > e.clientHeight + tolerance)
+        finding("card-slot", e, "scrollHeight " + e.scrollHeight + " > clientHeight " + e.clientHeight, e.scrollHeight, e.clientHeight);
+    }
+  }
+  each("#worldQueue", "queue", { left: T.inset, top: T.below, width: T.card, height: H - T.below - T.slot });
+  for (const e of all(".pal>.pal-box,#worldPalette")) {
+    measure("palette", e, "top", T.below);
+    const r = rect(e), centre = r.left + r.width / 2;
+    if (Math.abs(centre - W / 2) > tolerance) finding("palette", e, "centre " + num(centre) + " != " + W / 2, num(centre), W / 2);
+  }
+  for (const e of all(".toast,#worldAnnouncement")) {
+    const rail = all("#nav,#worldMinimap")[0];
+    const rightCards = cards.filter((c) => c.matches(".insp.open,#worldCard,#worldNetwork,#worldInspector"));
+    const freeRight = rightCards.length ? Math.min(...rightCards.map((c) => rect(c).left)) - T.gap : rail ? rect(rail).left - T.gap : W - T.inset - T.rail - T.gap;
+    const centre = (T.inset + freeRight) / 2, r = rect(e), actual = r.left + r.width / 2;
+    if (Math.abs(actual - centre) > tolerance) finding("toast", e, "centre " + num(actual) + " != free centre " + num(centre), num(actual), num(centre));
+    const bottomTop = H - T.inset - T.row, gap = bottomTop - r.bottom;
+    if (gap < -tolerance || gap > T.gap + tolerance) finding("toast", e, "bottom gap " + num(gap) + " outside 0.." + T.gap, num(gap), "0.." + T.gap);
+  }
+  for (const chip of document.querySelectorAll("#chips .chip")) {
+    if (!visible(chip) && !chip.classList.contains("under")) continue;
+    if (!chip.getClientRects().length || chip.closest("[hidden]")) continue;
+    const r = rect(chip);
+    if (r.width <= 0 || r.height <= 0) continue;
+    const hits = chrome.filter((e) => e.matches(".fl,.hint,#nav") && intersects(r, rect(e)));
+    if (hits.length && (!chip.classList.contains("under") || visible(chip)))
+      finding("plant-chips", chip, "intersects " + hits.map(label).join(",") + (chip.classList.contains("under") ? " but remains visible" : " without .chip.under"), visible(chip) ? "visible" : "missing .under", ".chip.under and hidden");
+  }
+  stats.island = { tokens: T, islands: chrome.length, cards: cards.length, queues: queue.length };
   return out;
 } }];
 
@@ -730,13 +836,7 @@ export const FOCUS_CHECK = `(() => {
 //                                                {"audit":"focus"} step after every shot, to pass to run-steps.mjs.
 // node audit.mjs report <outRoot>...             prints per-rule counts per steps file and appearance, then the top findings.
 // A rule added to PAGE_RULES needs a planted case in FIXTURES.broken.expect, or the selftest fails it.
-// The same lock dir run-steps.mjs takes, so fixture drives never overlap a concept drive.
-const LOCK = join(tmpdir(), "acan-drive.lock");
-const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-function locked(fn) {
-  for (;;) { try { mkdirSync(LOCK); break; } catch (e) { if (e.code !== "EEXIST") throw e; sleepSync(500); } }
-  try { return fn(); } finally { rmSync(LOCK, { recursive: true, force: true }); }
-}
+// Fixture drives use run-steps.mjs and its shared lock.
 const FIXTURE_CSS = `body{margin:0;background:#101214;color:#e6e6e6;font:14px/1.3 sans-serif}
 .a{position:absolute;white-space:nowrap}.tag{background:#2a2d31;padding:2px 6px}
 button{position:absolute;background:#000;color:#fff;border:1px solid #555;font:14px sans-serif;padding:4px 8px}
@@ -797,6 +897,38 @@ ${fixtureWords(58)} éclair 1,336 B · → %
   })),
 ];
 
+const islandBox = (attrs, left, top, width, height, style = "", content = "") => `<div ${attrs} style="position:fixed;box-sizing:border-box;left:${left}px;top:${top}px;width:${width}px;height:${height}px;${style}">${content}</div>`;
+const ISLAND_CASES = [
+  ...[
+    ["edges", (bad) => islandBox('class="fl tl"', bad ? 18 : 16, 16, 100, 40), (bad) => bad ? [["edges", ".fl.tl", 18, 16]] : []],
+    ["top-row", (bad) => islandBox('class="fl tl"', 16, bad ? 18 : 16, 100, bad ? 42 : 40), (bad) => bad ? [["top-row", ".fl.tl", 18, 16], ["top-row", ".fl.tl", 42, 40]] : []],
+    ["strip-row", (bad) => islandBox('class="hint"', 540, bad ? 66 : 64, 200, bad ? 30 : 28), (bad) => bad ? [["strip-row", "div.hint", 66, 64], ["strip-row", "div.hint", 30, 28]] : []],
+    ["bottom-row", (bad) => islandBox('class="fl bl"', 16, bad ? 614 : 616, 264, bad ? 170 : 168), (bad) => bad ? [["bottom-row", ".fl.bl", 170, 168]] : []],
+    ["centre-line", (bad) => islandBox('class="fl tc"', bad ? 592 : 590, 16, 100, 40), (bad) => bad ? [["centre-line", ".fl.tc", 642, 640]] : []],
+    ["gaps", (bad) => islandBox('id="fxGapA" class="fl"', 16, 200, 100, 40) + islandBox('id="fxGapB" class="fl"', bad ? 122 : 124, 200, 100, 40), (bad) => bad ? [["gaps", "#fxGapA", 6, 8]] : []],
+    ["card-slot", (bad) => islandBox('id="worldCard"', bad ? 870 : 872, bad ? 102 : 100, bad ? 394 : 392, 200), (bad) => bad ? [["card-slot", "#worldCard", 870, 872], ["card-slot", "#worldCard", 102, 100], ["card-slot", "#worldCard", 394, 392]] : []],
+    ["queue", (bad) => islandBox('id="worldQueue"', 16, bad ? 102 : 100, bad ? 394 : 392, bad ? 634 : 636), (bad) => bad ? [["queue", "#worldQueue", 102, 100], ["queue", "#worldQueue", 394, 392], ["queue", "#worldQueue", 634, 636]] : []],
+    ["palette", (bad) => islandBox('id="worldPalette"', bad ? 332 : 330, bad ? 102 : 100, 620, 242), (bad) => bad ? [["palette", "#worldPalette", 102, 100], ["palette", "#worldPalette", 642, 640]] : []],
+    ["toast", (bad) => islandBox('id="toast" class="toast"', bad ? 490 : 488, bad ? 701 : 703, 200, 33), (bad) => bad ? [["toast", "#toast", 590, 588], ["toast", "#toast", 10, "0..8"]] : []],
+    ["plant-chips", (bad) => islandBox('class="fl tl"', 16, 16, 100, 40) + `<div id="chips">${islandBox('id="fxChip" class="chip' + (bad ? "" : " under") + '"', 20, 20, 80, 20, bad ? "" : "opacity:0")}</div>`, (bad) => bad ? [["plant-chips", "#fxChip", "visible", ".chip.under and hidden"]] : []],
+  ].flatMap(([check, html, want]) => [false, true].map((bad) => ({ shot: check + (bad ? "-broken" : "-clean"), html: html(bad), findings: want(bad) }))),
+  { shot: "world-clean", html: islandBox('class="fl tl world-tl"', 16, 16, 358, 40) + islandBox('class="fl tc world-modes"', 476.5, 16, 327, 40) + islandBox('class="fl tr world-tr"', 981, 16, 283, 40) + islandBox('class="hint world-hint"', 281.5, 64, 717, 28) + islandBox('class="fl bl world-bl"', 16, 744, 232, 40) + islandBox('class="fl br world-br"', 332, 744, 932, 40) + islandBox('id="worldMinimap"', 1080, 64, 184, 139) },
+  { shot: "one-pixel-tolerance", html: islandBox('class="fl tl"', 17, 17, 100, 41) + islandBox('id="worldCard"', 873, 101, 391, 636) },
+  { shot: "hidden-and-absent", html: islandBox('class="fl tl"', 30, 30, 100, 45, "display:none") + islandBox('id="worldCard"', 10, 10, 100, 100, "visibility:hidden") + `<div style="opacity:0">${islandBox('class="fl br"', 10, 10, 100, 100)}</div><div style="content-visibility:hidden">${islandBox('class="fl tr"', 10, 10, 100, 100)}</div>` },
+  ...[false, true].map((bad) => ({ shot: "hint-shift-" + (bad ? "broken" : "clean"), html: islandBox('id="fxStrip" data-hint-row', 16, 64, 500, 28) + islandBox('class="hint"', bad ? 526 : 524, 64, 400, 28), findings: bad ? [["centre-line", "div.hint", 526, 524]] : [] })),
+  { shot: "rail-gap-clean", html: islandBox('id="nav"', 1168, 64, 96, 135, "", islandBox('id="compass"', 1179, 64, 74, 74)) + islandBox('class="hint"', 120, 64, 1040, 28) },
+  { shot: "rail-gap-broken", html: islandBox('id="nav"', 1168, 64, 96, 135) + islandBox('class="hint"', 118, 64, 1044, 28), findings: [["gaps", "#nav", 6, 8], ["gaps", "div.hint", 1162, 1160]] },
+  ...[false, true].map((bad) => ({ shot: "island-overlap-" + (bad ? "broken" : "clean"), html: islandBox('id="fxA" class="fl"', 16, 200, 100, 40) + islandBox('id="fxB" class="fl"', bad ? 114 : 116, 220, 100, 40), findings: bad ? [["gaps", "#fxA", "overlap", "no overlap"]] : [] })),
+  ...[false, true].map((bad) => ({ shot: "card-island-overlap-" + (bad ? "broken" : "clean"), html: islandBox('id="worldCard"', 872, 100, 392, 200) + islandBox('id="nav"', 1168, 64, 96, 135, bad ? "" : "visibility:hidden"), findings: bad ? [["gaps", "#worldCard", "overlap", "no overlap"]] : [] })),
+  ...[false, true].map((bad) => ({ shot: "clipped-overlap-" + (bad ? "broken" : "clean"), html: `<div style="position:fixed;left:16px;top:200px;width:100px;height:40px;overflow:${bad ? "visible" : "hidden"}"><div id="fxClipA" class="fl" style="position:relative;width:100px;height:100px"></div></div>` + islandBox('id="fxClipB" class="fl"', 16, 250, 100, 40), findings: bad ? [["gaps", "#fxClipA", "overlap", "no overlap"]] : [] })),
+  ...[false, true].map((bad) => ({ shot: "card-scroll-" + (bad ? "broken" : "clean"), html: islandBox('id="worldCard"', 872, 100, 392, 100, "overflow:auto", `<div style="height:${bad ? 102 : 100}px"></div>`), findings: bad ? [["card-slot", "#worldCard", 102, 100]] : [] })),
+  ...[false, true].map((bad) => ({ shot: "world-panel-" + (bad ? "broken" : "clean"), html: islandBox('id="fxWorldPanel" class="world-panel"', bad ? 870 : 872, 100, 392, 200), findings: bad ? [["card-slot", "#fxWorldPanel", 870, 872]] : [] })),
+  ...[false, true].map((bad) => ({ shot: "marked-chip-" + (bad ? "visible" : "hidden"), html: islandBox('class="fl tl"', 16, 16, 100, 40) + `<div id="chips">${islandBox('id="fxChip" class="chip under"', 20, 20, 80, 20, bad ? "" : "visibility:hidden")}</div>`, findings: bad ? [["plant-chips", "#fxChip", "visible", ".chip.under and hidden"]] : [] })),
+  { shot: "palette-content-clean", html: `<div class="pal">${islandBox('class="pal-box"', 330, 100, 620, 242)}</div>` },
+  { shot: "toast-card-free-rect-clean", html: islandBox('id="worldCard"', 872, 100, 392, 200) + islandBox('id="toast" class="toast"', 340, 703, 200, 33) },
+  { shot: "tokens-clean", tokens: { inset: 20, row: 44, gap: 10, strip: 30, slot: 74, below: 114, card: 400, rail: 100 }, html: islandBox('class="fl tl"', 20, 20, 100, 44) + islandBox('id="worldCard"', 860, 114, 400, 300) },
+];
+
 // #fxGlass and #fxGlassOk sit on an 85% black layer over white. Reading the nearest opaque background
 // would call black-on-it 21:1 and white-on-it 1:1; the composited shot gives 1.4:1 and 15:1.
 // #fxMid and #fxLarge share #7a7a7a (4.4:1): it fails at 14 px and passes the 3:1 large-text bar at 24 px.
@@ -820,7 +952,8 @@ ${[1, 2, 3].map((i) => `<button class="keep" style="left:${700 + i * 90}px;top:3
 </div>
 ${kvLog(100, 150, [100, 40])}
 <div role="dialog" id="fxCard" class="pop" style="left:1450px">card past the edge</div>
-${budgetCard(61)}`),
+${budgetCard(61)}
+${islandBox('id="fxIsland" class="fl tl"', 18, 16, 100, 40)}`),
     steps: [
       { eval: "setTimeout(() => document.querySelector('#fxRing').focus(), 100); true", expect: true },
       { wait: 400 },
@@ -840,6 +973,7 @@ ${budgetCard(61)}`),
       "egress-sum": [/^\.egress$/, /#gateKv/, /^\.egress$/],
       "focus-steal": [/#fxRing/],
       "text-budget": [/^#fxBudgetCard$/],
+      island: [/^#fxIsland$/],
     },
     focusedRing: /#fxRing2$/,
   },
@@ -887,21 +1021,37 @@ ${kvLog(140, 140, [100, 40])}
     ]),
     expect: { "text-budget": TEXT_CASES.flatMap((c) => (c.findings || []).map(([selector]) => new RegExp("^" + selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"))) },
     budgets: TEXT_CASES,
+    rules: ["text-budget"],
+  },
+  island: {
+    html: fixturePage(""),
+    size: "1280x800",
+    rules: ["island"],
+    steps: ISLAND_CASES.flatMap((c) => [
+      { eval: `window.SHELL=${JSON.stringify(c.tokens || null)};document.body.innerHTML=${JSON.stringify(c.html)};true`, expect: true },
+      { shot: c.shot },
+    ]),
+    expect: { island: ISLAND_CASES.flatMap((c) => (c.findings || []).map(([, selector]) => new RegExp("^" + selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"))) },
+    islands: ISLAND_CASES,
   },
 };
 
 function selftest(dir) {
   mkdirSync(dir, { recursive: true });
-  const drive = join(dirname(fileURLToPath(import.meta.url)), "drive.mjs"), checks = [];
+  const runner = join(dirname(fileURLToPath(import.meta.url)), "run-steps.mjs"), checks = [];
   for (const [name, fx] of Object.entries(FIXTURES)) {
-    const html = join(dir, name + ".html"), steps = join(dir, name + ".steps.json"), out = join(dir, name);
-    writeFileSync(html, fx.html); writeFileSync(steps, JSON.stringify(fx.steps));
-    const run = locked(() => spawnSync(process.execPath, [drive, html, "", steps, out], { env: { ...process.env, AUDIT: "1" }, encoding: "utf8" }));
-    writeFileSync(join(dir, name + ".log"), run.stdout + run.stderr);
-    checks.push([name + ": drive ran with no page errors or step failures", /^OK\r?$/m.test(run.stdout)]);
+    const root = join(dir, name), html = join(root, name + ".html"), steps = join(root, "quiet.steps.json"), out = join(root, "quiet");
+    mkdirSync(root, { recursive: true });
+    writeFileSync(html, fx.html);
+    // A neutral key waits for navigation without marking focus in the document being replaced.
+    writeFileSync(steps, JSON.stringify([{ eval: `location.href=${JSON.stringify(pathToFileURL(html).href)};true`, expect: true }, { key: "F24", after: 300 }, ...fx.steps]));
+    const run = spawnSync(process.execPath, [runner, steps], { env: { ...process.env, AUDIT: "1", OUTROOT: root, SIZE: fx.size || "1600x900" }, encoding: "utf8", maxBuffer: 64 << 20 });
+    const log = existsSync(join(root, "quiet.log")) ? readFileSync(join(root, "quiet.log"), "utf8") : run.stdout + run.stderr;
+    writeFileSync(join(dir, name + ".log"), log);
+    checks.push([name + ": drive ran with no page errors or step failures", /^OK\r?$/m.test(log)]);
     const s = JSON.parse(readFileSync(join(out, "audit-summary.json"), "utf8"));
     const all = s.audits.flatMap((a) => a.findings), unk = s.audits.flatMap((a) => a.unknown);
-    for (const rule of RULES) {
+    for (const rule of fx.rules || RULES) {
       const got = all.filter((f) => f.rule === rule), want = fx.expect[rule] || [];
       const planted = name !== "broken" || want.length > 0;
       const ok = planted && got.length === want.length && want.every((re) => got.some((f) => re.test(f.selector)));
@@ -913,6 +1063,10 @@ function selftest(dir) {
       checks.push([`${name}: ${c.shot} counts ${c.total} product words, ${c.user || 0} user words, cap ${c.cap || 136}, reveal ${!!c.layer}`, !!b && b.total === c.total && b.user === (c.user || 0) && b.cap === (c.cap || 136) && b.layer === !!c.layer]);
       const got = a ? a.findings.filter((f) => f.rule === "text-budget") : [], want = c.findings || [];
       checks.push([name + ": " + c.shot + " reports exactly the budget overruns with measured values and limits", !!a && !a.unknown.some((u) => u.rule === "text-budget") && got.length === want.length && want.every(([selector, detail, value, limit]) => got.some((f) => f.selector === selector && f.detail === detail && f.value === value && f.limit === limit))]);
+    }
+    for (const c of fx.islands || []) {
+      const a = s.audits.find((a) => a.shot === c.shot), got = a ? a.findings.filter((f) => f.rule === "island") : [], want = c.findings || [];
+      checks.push([name + ": " + c.shot + " reports exactly " + want.length + " island findings with sub-checks, values and limits", !!a && !a.unknown.some((u) => u.rule === "island") && got.length === want.length && want.every(([check, selector, value, limit]) => got.some((f) => f.selector === selector && f.detail.startsWith(check + " ") && f.value === value && f.limit === limit))]);
     }
     const focusRuns = s.audits.filter((a) => /-focus$/.test(a.shot));
     if (focusRuns.length > 1) checks.push([name + ": a repeat focus audit reuses verdicts and reports the same findings", focusRuns[1].stats.reused >= 2 && focusRuns[1].findings.length === focusRuns[0].findings.length]);
