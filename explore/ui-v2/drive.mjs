@@ -6,7 +6,7 @@
 // AUDIT=1 runs audit.mjs at every shot, writes <outDir>/<shot>.audit.json, checks focus across every wait,
 // prints findings per rule at the end, and exits non-zero on any finding.
 // SIZE=WxH sets the viewport and window size (default 1600x900).
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -25,10 +25,12 @@ mkdirSync(outDir, { recursive: true });
 const profile = mkdtempSync(join(tmpdir(), "acan-drive-"));
 const chromeBin = process.env.CHROME || (process.platform === "win32" ? "C:/Program Files/Google/Chrome/Application/chrome.exe" : process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome");
 const chrome = spawn(chromeBin, ["--headless=new", "--remote-debugging-port=0", "--user-data-dir=" + profile, "--no-first-run", "--hide-scrollbars", "--window-size=" + W + "," + H, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+// On Windows, kill() stops only the browser process and its renderers keep running; a failed start used to leak all of them.
+process.on("exit", () => { if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(chrome.pid), "/T", "/F"], { stdio: "ignore" }); else chrome.kill(); });
 const port = await new Promise((ok, no) => {
   let buf = "";
   chrome.stderr.on("data", (d) => { buf += d; const m = buf.match(/DevTools listening on ws:\/\/[^:]+:(\d+)\//); if (m) ok(m[1]); });
-  setTimeout(() => no(new Error("chrome did not start: " + buf.slice(-400))), 15000);
+  setTimeout(() => no(new Error("chrome did not start: " + buf.slice(-400))), 30000);
 });
 const page = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find((t) => t.type === "page");
 const ws = new WebSocket(page.webSocketDebuggerUrl);
@@ -59,7 +61,10 @@ await send("Page.enable"); await send("Runtime.enable"); await send("Log.enable"
 await send("Emulation.setDeviceMetricsOverride", { width: W, height: H, deviceScaleFactor: 1, mobile: false });
 const loaded = once("Page.loadEventFired");
 await send("Page.navigate", { url: "file://" + resolve(file) + (hash ? "#" + hash.replace(/^#/, "") : "") });
-await loaded; await sleep(900);
+await loaded;
+// A late load event from the startup about:blank can satisfy the wait above, so confirm the concept page itself loaded.
+for (let i = 0; i < 300 && !(await evaluate(`location.protocol === "file:" && document.readyState === "complete"`)); i++) await sleep(100);
+await sleep(900);
 
 for (const [i, s] of steps.entries()) {
   const tag = `step ${i + 1} ${JSON.stringify(s)}`;

@@ -8,12 +8,13 @@ export const PAL_HTML = `
 </div>`;
 
 export const PAL_CSS = `
-.pal{position:fixed;inset:0;z-index:20;display:none;align-items:flex-start;justify-content:center;padding-top:96px;background:rgba(0,0,0,.28)}
+.pal{position:fixed;inset:0;z-index:20;display:none;align-items:flex-start;justify-content:center;padding-top:var(--below);background:rgba(0,0,0,.28)}
 .pal.open{display:flex}
 .pal-box{width:600px;max-width:calc(100vw - 32px);border-radius:14px;background:var(--glass-hi);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid var(--line2);box-shadow:var(--shadow);overflow:hidden}
 .pal-in{display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line)}
 .pal-in input{flex:1;height:46px;background:none;border:0;outline:0;color:#f2f2f2;font:14px var(--sans)}
 .pal-in input::placeholder{color:var(--faint)}
+.pal-in input:focus{box-shadow:0 1.5px 0 var(--focus)}
 .pal-list{max-height:404px;overflow:auto;padding:6px;scrollbar-width:thin;scrollbar-color:#333 transparent}
 .pal-h{padding:8px 8px 4px;font:9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
 .pal-row{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;width:100%;min-height:38px;padding:4px 8px;border-radius:9px;text-align:left;color:#d6d6d6}

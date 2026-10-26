@@ -525,6 +525,8 @@ function ordersRenderCard() {
 function ordersRenderDock() {
   const posted = ordersState.order.state !== "draft";
   $("#orders-guide").hidden = posted;
+  // The frame loop refreshes the guide, but a guide unhidden here would otherwise show its initial gates until the next frame.
+  if (!posted) ordersGuide();
   $(".hint").hidden = !posted;
   $(".hint").textContent = ordersState.question.answered ? "P inspect · click a pin · U Kvarm" : "P inspect · I question · U Kvarm";
   $("#orders-dock").hidden = !posted || ordersState.open === "order";

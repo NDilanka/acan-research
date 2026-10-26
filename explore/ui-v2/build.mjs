@@ -47,12 +47,14 @@ ${STATE_CSS}
 ${Object.entries(SHELL).map(([k, v]) => "--" + k + ":" + v + "px").join(";")};
 --sans:"Inter","IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;--ease:cubic-bezier(.32,.72,0,1);
 --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 12px 32px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.3)}
-${ISLANDS}{--glass:rgba(18,18,18,.7);--glass-hi:rgba(26,26,26,.82);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.13);--text:#d6d6d6;--dim:#8a8a8a;--faint:#6a6a6a;--wait:#e1a43c;
+${ISLANDS},.insp{--glass:rgba(18,18,18,.7);--glass-hi:rgba(26,26,26,.82);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.13);--text:#d6d6d6;--dim:#a3a3a3;--faint:#969696;--wait:#e1a43c;
 --ink:#ececec;--hover:rgba(255,255,255,.06);--press:rgba(255,255,255,.09);--tick:rgba(255,255,255,.22);--focus:#c9a45c;--wait-ink:#f1d5a2;--wait-fill:rgba(225,164,60,.09);--wait-chip:rgba(225,164,60,.18);--sw-off:#2a2a2a;--sw-on:#3d3d3d;--knob:#bbb;--knob-on:#fff;
 --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 12px 32px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.3)}
-body[data-appearance=light] ${ISLANDS}{--glass:rgba(252,250,245,.8);--glass-hi:rgba(252,250,245,.94);--line:rgba(36,40,45,.1);--line2:rgba(36,40,45,.18);--text:#24282d;--dim:#50575e;--faint:#60656b;--wait:#805400;
+body[data-appearance=light] ${ISLANDS}{--glass:rgba(252,250,245,.8);--glass-hi:rgba(252,250,245,.94);--line:rgba(36,40,45,.1);--line2:rgba(36,40,45,.18);--text:#24282d;--dim:#50575e;--faint:#575c62;--wait:#805400;
 --ink:#16191c;--hover:rgba(36,40,45,.06);--press:rgba(36,40,45,.09);--tick:rgba(36,40,45,.3);--focus:#795a27;--wait-ink:#6b4700;--wait-fill:rgba(128,84,0,.08);--wait-chip:rgba(128,84,0,.14);--sw-off:#d4cfc3;--sw-on:#a99f8c;--knob:#fcfaf5;--knob-on:#fff;
 --shadow:0 1px 0 rgba(255,255,255,.7) inset,0 8px 24px rgba(41,37,31,.1),0 1px 3px rgba(41,37,31,.08)}
+/* The decks and the inspector are drawn with fixed graphite colours, so in light they stay dark glass, made opaque enough to hold 4.5:1. */
+body[data-appearance=light] :is(.simdeck,.insp){--glass:rgba(18,18,18,.94);--glass-hi:rgba(26,26,26,.96);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.13);--text:#d6d6d6;--dim:#a3a3a3;--faint:#969696;--ink:#ececec;--hover:rgba(255,255,255,.06);--press:rgba(255,255,255,.09);--focus:#c9a45c;--wait:#e1a43c;--wait-ink:#f1d5a2}
 body[data-appearance=light] .toast{color:var(--text)}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#0a0a0a;color:var(--text);font:13px/1.4 var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}
@@ -163,9 +165,12 @@ body:not([data-mode=live]) .watermark{opacity:1}
 input:checked+.sw,[aria-pressed=true]>.sw{background:var(--sw-on)}input:checked+.sw::after,[aria-pressed=true]>.sw::after{transform:translateX(11px);background:var(--knob-on)}
 .pop input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
 .pop select{font:11px var(--mono);color:var(--text);background:var(--hover);border:1px solid var(--line2);border-radius:6px;padding:2px 4px}
-.fl kbd,.pop kbd{font-size:11px}
-:is(.fl,.nav,.pop) :is(button,a,select,input,[tabindex]):focus-visible,.pop label:has(input:focus-visible){outline:1.5px solid var(--focus);outline-offset:1px}
-:is(.fl,.nav,.pop) :focus:not(:focus-visible),.pop input:focus-visible{outline:none}
+.fl kbd,.pop kbd,.hint kbd{font-size:11px}
+.fl .caret{color:var(--faint)}
+.chip.under{opacity:0!important;transition:none;pointer-events:none}
+/* Mouse focus keeps the ring too: the next key acts on that control, so where focus sits must stay visible. */
+:is(.fl,.nav,.pop) :is(button,a,select,input,[tabindex]):focus,.pop label:has(input:focus-visible){outline:1.5px solid var(--focus);outline-offset:1px}
+.pop input:focus{outline:none}
 
 .insp{position:fixed;top:var(--below);right:var(--inset);bottom:var(--slot);width:var(--card);border-radius:16px;background:var(--glass-hi);backdrop-filter:blur(20px) saturate(1.2);-webkit-backdrop-filter:blur(20px) saturate(1.2);border:1px solid var(--line2);box-shadow:var(--shadow);transform:translateX(calc(100% + 80px));z-index:7;display:flex;flex-direction:column;overflow:hidden}
 .insp.open{transform:none}
@@ -253,7 +258,7 @@ const body = `
   <div class="callouts" id="callouts"></div>
 </main>
 <div class="watermark" id="watermark"></div>
-<div class="fl tl"><button class="b brand">${LOGO}Acan</button><span class="sep"></span><button class="b">Acquit <span style="opacity:.5">▾</span></button><button class="b" data-do="palette">Go to <kbd>Ctrl K</kbd></button></div>
+<div class="fl tl"><button class="b brand">${LOGO}Acan</button><span class="sep"></span><button class="b">Acquit <span class="caret">▾</span></button><button class="b" data-do="palette">Go to <kbd>Ctrl K</kbd></button></div>
 <div class="fl tc"><div class="modes" id="modes"><span class="pill"></span>
   <button data-mode="live" aria-pressed="true">Live <kbd>1</kbd></button><button data-mode="blueprint">Blueprint <kbd>2</kbd></button><button data-mode="simulate">Simulate <kbd>3</kbd></button><button data-mode="replay">Replay <kbd>4</kbd></button></div></div>
 <div class="fl tr"><button class="b" id="layersBtn">Layers <kbd>L</kbd></button><button class="b" id="exportBtn">Export</button><span class="egress" title="Outbound connections since launch"><span class="dot"></span>local · 0 out</span></div>
@@ -384,6 +389,9 @@ function chipShown(c) {
 function layoutChips() {
   const all = [...document.querySelectorAll(".chip")];
   for (const c of all) c.style.removeProperty("--lift");
+  // A chip under shell chrome cannot be read and reads as a collision, so it hides until the camera brings it out.
+  const chrome = [...document.querySelectorAll(".fl,.hint,#nav")].filter((e) => e.checkVisibility({ opacityProperty: true, visibilityProperty: true })).map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height);
+  for (const c of all) { const r = c.getBoundingClientRect(); c.classList.toggle("under", chrome.some((q) => r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top)); }
   const items = all.filter(chipShown).map((c) => ({ c, r: c.getBoundingClientRect(), rank: c.classList.contains("sel") ? 8 : c.classList.contains("show") || document.body.classList.contains("alt") ? CHIP_RANK[c.dataset.state] || 0 : -1 }));
   items.sort((a, b) => b.rank - a.rank || b.r.bottom - a.r.bottom);
   const placed = [], gap = 3;

@@ -730,7 +730,9 @@ function worldMount(D, art) {
     else if (!inward && state.level === "cutaway") { state.level = "machine"; paint(); }
     else if (!inward && state.level === "machine") { state.selection = null; state.question = null; state.contract = null; state.level = "plant"; paint(); }
     else if (!inward && state.level === "plant") navigate(worldView());
-    if (state.level !== before) wheel.locked = true;
+    // The lock counts quiet time from after the new level is built. Counting from the triggering event let a slow stage
+    // build eat the 300 ms window, so one continuing gesture could cross a second level.
+    if (state.level !== before) { wheel.locked = true; wheel.last = performance.now(); }
   }, { passive: false });
   const canvasEl = q("#worldCanvas");
   canvasEl.addEventListener("pointerdown", e => {

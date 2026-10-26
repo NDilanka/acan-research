@@ -28,7 +28,7 @@ export function floorHtml(DRONE_ICON) {
 }
 
 export const FLOOR_CSS = `
-.agent.blocked{color:#f1d5a2}.agent.blocked svg{color:var(--strain)}.agent.blocked span{color:#c9a466}
+.agent.blocked{color:var(--wait-ink)}.agent.blocked svg{color:var(--strain)}.agent.blocked span{color:var(--wait)}
 .agent.on{background:rgba(255,255,255,.07);color:var(--text)}
 .bl .tl{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border-radius:8px;color:var(--dim);font-size:11.5px;border-top:1px solid var(--line);margin-top:2px}
 .bl .tl:hover{color:var(--text);background:rgba(255,255,255,.04)}.bl .tl kbd{margin-left:auto}

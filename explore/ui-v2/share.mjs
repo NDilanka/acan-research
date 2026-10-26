@@ -55,8 +55,8 @@ body.exporting .bl,body.exporting .br,body.exporting .nav,body.exporting .hint,b
 .netlb span{font:10.5px var(--mono);color:var(--dim)}.netlb em{font:normal 10.5px var(--mono);color:var(--ok)}
 .netst div{display:flex;flex-direction:column;font-size:12px;color:#cfcfcf}.netst div span{font:10.5px var(--mono);color:var(--dim)}
 .netst small{font:10.5px var(--mono);color:var(--faint);margin-top:2px}
-.egress{cursor:pointer}.egress:hover{color:#fff;border-color:var(--line2)}
-body.offline .egress{color:#f2f2f2;border-color:rgba(255,255,255,.3)}
+.egress{cursor:pointer}.egress:hover{color:var(--ink);border-color:var(--line2)}
+body.offline .egress{color:var(--ink);border-color:var(--tick)}
 body.offline .egress .dot{background:#8a8a8a;box-shadow:none}
 body.offline .netlb em{color:var(--ok)}
 `;

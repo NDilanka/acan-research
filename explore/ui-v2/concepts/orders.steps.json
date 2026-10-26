@@ -844,7 +844,8 @@
     "expect": true
   },
   {
-    "wait": 2800
+    "eval": "(async()=>{for(let i=0;i<160&&ordersState.arrived.length<2;i++)await new Promise(r=>setTimeout(r,50));return ordersState.arrived.length})()",
+    "expect": 2
   },
   {
     "eval": "[ordersState.arrived,ordersState.open]",

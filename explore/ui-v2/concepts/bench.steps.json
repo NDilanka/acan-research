@@ -151,7 +151,8 @@
     "shot": "bench-03-funded"
   },
   {
-    "wait": 2300
+    "eval": "(async()=>{for(let i=0;i<200&&benchState.attempts.a3.results.w1!=='holds';i++)await new Promise(r=>setTimeout(r,25));return benchState.attempts.a3.results.w1})()",
+    "expect": "holds"
   },
   {
     "eval": "({a2:benchState.attempts.a2.status, w3:benchState.attempts.a2.results.w3, seen:benchState.attempts.a2.seen.w3, a1:benchState.attempts.a1.status, a1w1:benchState.attempts.a1.results.w1, a3w1:benchState.attempts.a3.results.w1, toast:document.querySelector('#toast').textContent, phase:benchState.phase})",
