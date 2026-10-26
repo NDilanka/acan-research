@@ -1,6 +1,6 @@
 # Parked session: Acan agentic UX (ui-v2)
 
-Resume file for a fresh orchestrator chat. Updated 2026-10-26. No loops. Running subagents are the shell, text and audit agents (step 1) and the doc delegate (step 0). If this chat is gone, they are dead: launch fresh with the same briefs.
+Resume file for a fresh orchestrator chat. Updated 2026-10-26. No loops. Running subagents are the shell, text and audit agents (step 1). If this chat is gone, they are dead: launch fresh with the same briefs.
 
 **Machine.** The project moved off the droid computer to Windows at `D:\dev\Experiments\Acan` (PowerShell 7). Translate any `/home/factory-user/acan` path. The shell, text and audit agents died on Oct 18 when compute ran out. Their edits were rebuilt from transcripts into the working tree. `SHELL.md` was never written.
 
@@ -46,7 +46,7 @@ Resume file for a fresh orchestrator chat. Updated 2026-10-26. No loops. Running
 
 ## Next steps, in order
 
-0. **Multiplayer and Kvarm research** (done 2026-10-26). n and o are committed (45a01a9). p stays local and uncommitted, because its capability list mirrors the private rewrite plans. The synthesis is `research/agentic-ux/02-synthesis-multiplayer.md` (9272073). Its defaults stand for the ten user calls until the user answers. A doc delegate (pv-sol-high, fc7ff87b-0bbb-4f89-865d-4f03efccfa72) applies the plan to CORE.md, READINESS.md (adds G10 and the team bar T1 to T4) and the proposal. The PARKED changes are applied. The 15 JOURNEY changes wait until the shell agent finishes section 1, then recheck each line address. Keep the four connection scenarios, add `peer=1`, and add the capability, race and uncertain-outcome fixtures. Do not turn mock success into a deployed compatibility claim. The team pass (JOURNEY section 8) is built after the core journey and does not block it.
+0. **Multiplayer and Kvarm research** (done 2026-10-26). n and o are committed (45a01a9). p stays local and uncommitted, because its capability list mirrors the private rewrite plans. The synthesis is `research/agentic-ux/02-synthesis-multiplayer.md` (9272073). Its defaults stand for the ten user calls until the user answers. The plan is applied to CORE.md, READINESS.md (G10 and the team bar T1 to T4), the proposal and this file (9959f5a). The 15 JOURNEY changes wait until the shell agent finishes section 1, then recheck each line address. Keep the four connection scenarios, add `peer=1`, and add the capability, race and uncertain-outcome fixtures. Do not turn mock success into a deployed compatibility claim. The team pass (JOURNEY section 8) is built after the core journey and does not block it.
 1. **Shell, text and audit agents**, all pv-opus-high, as poteto-agent. Relaunched 2026-10-26 on Windows from the rebuilt tree: shell e6f82ecc-f212-43d9-b32a-2bd847838085, text 107f1a27-a631-47c6-8f78-da05aee97cd6, audit c98d404b-2f16-46ff-a2bc-3f4a2252d8dc. Each may read only its predecessor's transcript in `recovered/`. Baseline at relaunch: rebuilt tree 7 of 12 OK (clash 2, gate 70, orders 9, quiet page error, world 17); HEAD on Windows 8 of 12. Agents do not commit; the coordinator verifies and commits.
    - **Shell** (resume id 8f886fb1-0f0c-46f1-b44d-6322cba54ce2).
      - Write `ui-v2/SHELL.md`, the one shell spec, based on the liked orders layout. Give island positions and sizes at 1280x800, 1440x900 and 1600x900.
