@@ -1,8 +1,10 @@
 # Parked session: Acan agentic UX (ui-v2)
 
-Resume file for a fresh orchestrator chat. Updated 2026-10-26. No loops. Running subagents are the shell, text and audit agents (step 1). If this chat is gone, they are dead: launch fresh with the same briefs.
+Resume file for a fresh orchestrator chat. Updated 2026-10-27. No loops. The one running subagent is the island audit rule delegate 23e588f2-42bc-4264-a664-cc40a0e8c587 (step 2). If this chat is gone, it is dead: launch fresh with the same brief.
 
-**Machine.** The project moved off the droid computer to Windows at `D:\dev\Experiments\Acan` (PowerShell 7). Translate any `/home/factory-user/acan` path. The shell, text and audit agents died on Oct 18 when compute ran out. Their edits were rebuilt from transcripts into the working tree. `SHELL.md` was never written.
+**State on 2026-10-27 (HEAD 837fe4c).** Step 1 is done. SHELL.md, TEXT.md, audit.mjs with the text-budget rule, the island shell on every concept, and the 15 JOURNEY synthesis changes are committed. The full suite passes 12 of 12 three runs in a row. Step flakes came from machine load. Steps now poll for scripted events instead of fixed sleeps, wheel gestures go in one eval, and drive.mjs waits for the concept page load and kills the Chrome tree on Windows. New steps must poll, not sleep, for anything driven by a timer.
+
+**Machine.** The project moved off the droid computer to Windows at `D:\dev\Experiments\Acan` (PowerShell 7). Translate any `/home/factory-user/acan` path. Use `run-steps.mjs`, not `run-steps.sh`. Log decisions by appending TSV lines to `research/agentic-ux/decisions.tsv` with PowerShell, because log.sh is bash.
 
 ## Hard rules and standing directives
 
@@ -31,13 +33,10 @@ Resume file for a fresh orchestrator chat. Updated 2026-10-26. No loops. Running
 - **Done.** Research waves (a to m), syntheses, interviews 1 to 3, and the map proposal (`proposals/ui-v2.md`, including same-file rows W23 to W27).
 - **Same-file editing.** Tenure is killed. Kept: a declaration-level advisory clash forecast, read-blob admission as a Kvarm ask, and a narrow Slots pilot (`research/agentic-ux/same-file/00-judging.md`).
 - **Five standalone prototypes** in `ui-v2/concepts/`: orders, clash, gate, bench, world.
-- **`ui-v2/JOURNEY.md`** is the spec that stitches all five into one session. Its section 1 still describes the rejected bar-and-dock shell.
-- **Health check, Windows, 2026-10-26.** At HEAD 861dc59, 8 of 12 steps files print OK (clash step 2, orders step 9, quiet step 41 and world-kv-offline step 15 fail; world-kv-offline is timing flaky). In the rebuilt tree, 7 of 12 (clash 2, gate 70, orders 9, quiet page error, world 17). On Linux before the crash only clash step 4 failed, so clash and orders also fail from Windows font metrics. The shell and text agents own these.
-- **Partial files from stopped agents.**
-  - `ui-v2/audit.mjs` (41 KB). The AUDIT-gated code in `drive.mjs` is partly there, and plain runs still print OK.
-  - `ui-v2/concepts/quiet.mjs` (79 KB), registered in `concepts/index.mjs:13`.
-  - `TEXT.md` and `SHELL.md` do not exist yet.
-- **Backups.** `ui-v2/.backups/shell-before/` and `ui-v2/.backups/uiv2-before/`.
+- **`ui-v2/JOURNEY.md`** is the spec that stitches all five into one session. Section 1 describes the island shell, the 15 synthesis changes are applied (e439dd0), and section 8 is the paid team pass.
+- **`ui-v2/SHELL.md`** (837fe4c) is the one shell spec. Section 7 lists known violations that are concept work: concept cards outside the right card slot, the orders card scrolling at 1280 x 800, the clash hint against the rail at 1280, the clash audit card off-screen at 1440, the tall `.fl.bl`, and small replay deck and inspector type. Step 3 or 4 owns them.
+- **Health check, 2026-10-27.** 12 of 12 three runs in a row at 837fe4c.
+- **Backups.** `ui-v2/.backups/` holds shell-before, uiv2-before and shell-r3 to r6. They are untracked.
 - **Reviews in.**
   - `review/world-xai-r2.md`: world not ready, 3 must-fix (connector lines, queue clip, arrival message).
   - `review/core4-xai-r2.md`: all four not ready. Badge counts disagree with the rows. Readback rows say pending and failed after the claim. Gate I skips the blocking row. Bench says "8 of 9 replayed". Light mode is unread.
@@ -68,7 +67,7 @@ Resume file for a fresh orchestrator chat. Updated 2026-10-26. No loops. Running
      - Add `SIZE=WxH` to `drive.mjs`.
      - Run it over every steps file in dark and light, with shots to `/tmp/audit-<id>`. Write `review/audit-r1.md`.
      - Edit only `audit.mjs`, the AUDIT and SIZE code in `drive.mjs`, and the review.
-2. **When they return**, verify each yourself and show the user the before and after shots. Add the word-budget and island-position rules from TEXT.md and SHELL.md to `audit.mjs`.
+2. **Audit rules and shots.** The word-budget rule is done (7214708). The island rule from SHELL.md section 6 is with delegate 23e588f2. Verify its selftest and that its findings match SHELL.md section 7, then commit. Show the user the `shots/shell-*` before and after pairs.
 3. **Revise `JOURNEY.md`** (Opus). Apply spec-review items 3 to 11, and reconcile it with SHELL.md and TEXT.md.
 4. **Build the journey** (Opus). Inputs are the revised JOURNEY.md, SHELL.md, TEXT.md, and every must-fix in `review/*-r2.md`. Verify at 1280x800 and 1440x900, in light, with kv=offline, and with AUDIT=1.
 5. **Run a cross-lab journey critique** (G5), then fix rounds.
