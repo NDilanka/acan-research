@@ -2,7 +2,7 @@
 
 Throwaway prototypes that decide how Acan's core loop feels. Evidence and reasoning are in `../research/agentic-ux/00-synthesis.md` and `../research/agentic-ux/concepts/00-judging.md`. The user's calls are these. Agents claim open orders on their own, after a readback. The review gate is advisory (wave 2, not here). Developer experience must be excellent, and core features come first.
 
-Round 3 adds three calls. Kvarm is an opt-in connection to your own origin, and every byte to it is drawn as declared egress. A claim needs both a matching Acan readback and a live Kvarm lease of the same generation; a lease holder with no matching readback is drawn as UNMATCHED, never as CLAIMED. We ask Kvarm to enforce that readback match server-side as a precondition on claim_task. The review gate stays advisory.
+Kvarm is an opt-in coordination authority behind Acan's thin adapter. The first request waits for consent to the origin and data classes. Every send is declared egress. An agent self-claims only after an applicable Acan readback match and an accepted live lease. Bind the match to the order revision, witness-definition digest, drawing revision, principal, and returned fence. A lease without that match is UNMATCHED, never CLAIMED. Server-enforced readback gating is a capability to discover, not a current guarantee. Leases, declarations and blocks that belong to principals you did not mint are drawn the same way, with the holder the origin names. The review allowance stays advisory.
 
 ## The loop these two concepts make
 
@@ -11,7 +11,7 @@ Today the engineer types a prompt into each agent and reads a diff at the end. I
 1. Point at real moments in Replay and pin them as **must not** or **must keep**. These pins are witnesses.
 2. Post one sentence plus the witnesses as an **order** on the machine. The witnesses become locked checks (K16).
 3. Agents send a **readback**, which is their interpretation replayed against the witnesses before any code. If two readbacks disagree, Acan asks the engineer one question at the place where they disagree. The answer becomes another witness.
-4. An agent whose readback matches every check **claims** the order on its own. Nobody assigns it.
+4. An agent whose readback matches every current check requests the order's lease on its own. Show CLAIMED only after the selected authority accepts the lease and Acan binds it to that match. Nobody assigns the order.
 5. Each claimed agent **declares** what it will change. Where two declarations meet on a belt or a layer, a **clash pin** appears with its consequence. The engineer settles it with one key, before any file is edited.
 
 Concept `orders` covers steps 1 to 4. Concept `clash` covers step 5 and starts from the state that `orders` ends in.
@@ -72,22 +72,23 @@ End state: expose `window.clashState` with `{ footprints: bool, open: id|null, s
 
 ## Kvarm and evidence (wave 3)
 
-Kvarm is an opt-in connection to the user's own origin (`git.acan.local`), so every op to it is declared egress. Each concept inlines its own scripted fixture from `concepts/core-data.mjs` (`KVARM`) and makes no network requests. A strip under the order plate logs each op with destination, bytes, and reason. The egress pill (top right) adds the bytes and opens the network log. The hash flag `kv=ok`, `kv=unmatched`, `kv=stale`, or `kv=offline` picks the script. No flag is `kv=ok`, and the default stays as calm as before.
+The production boundary is Acan's coordination adapter, not Kvarm tool names. A connection names its authority, repository, origin, capabilities, and principal. The prototypes inline fixtures from `concepts/core-data.mjs` and make no requests. Keep `kv=ok`, `kv=unmatched`, `kv=stale`, and `kv=offline` as scenarios, with `kv=ok` as the default. Connection, freshness, and match status are separate axes. The shared egress ledger records actual sends in production and explicitly scripted sends in these prototypes. Its pill opens the network log without changing connection state. Optional capabilities discovered at connect time stay off until the selected server reports compatible support and permission.
 
 **Orders.**
-- Post writes order revision `r1` locally, then logs `create_issue` and `dispatch_issue`. The flag reads `POSTED LOCALLY` until both return, then `OPEN · kvarm #41`.
-- Readback rows say `readback · Acan`, because Kvarm stores no readback.
-- An answer that creates w3 bumps the order to `r2` and logs `comment_issue`. Readbacks show `re-scored on r2`.
-- A claim logs `claim_task` from the agent's own token. The flag reads `CLAIMED · Claude Code · lease g1` with a countdown. The other matched agent shows `yields`.
-- With `kv=unmatched`, Codex holds the Kvarm lease with no readback. The flag reads `UNMATCHED · Codex holds g1 · no readback` in amber, the territory stays fogged, and a Waiting-on-you row appears. Never draw this state as `CLAIMED`.
-- With `kv=stale`, a heartbeat fails. The flag reads `LEASE STALE · g1 expired`, the bot shows `stopped · STALE_GENERATION`, and the territory refogs.
-- With `kv=offline`, Post shows `POSTED LOCALLY · not in Kvarm` and a matching readback shows `MATCHED · claim waits for connection`. Writes are held and counted on the pill. Reconnect shows `checked heads and leases`, and Enter sends the held writes in order.
+- Post commits order revision `r1` locally, then calls `publishWork`. Show POSTED LOCALLY until both remote record creation and claimable-work publication are confirmed. The evidence card may show the backend issue and task locators.
+- Acan owns typed readbacks and their evaluation. Store an authorized revision-bound result reference wherever another viewer needs to verify the match. Never infer a match from a lease.
+- An answer adds w3 and creates order `r2`. Call `publishWork` for the new revision and invalidate matches for the old witness digest. Show the revision used for each score.
+- The agent calls `claimWork` with its own credential handle after matching. Bind the returned fence to that match. Show CLAIMED and the conservative lease deadline only after acceptance. Other matched agents yield.
+- With `kv=unmatched`, Codex holds a remote lease without an applicable readback. Show UNMATCHED with the holder and reason. Keep fog and add a Waiting-on-you row without moving focus.
+- With `kv=stale`, distinguish a failed observation, known expiry, and rejected fence. Refog uncertain ownership. Stop managed work under a known expired or rejected claim. Never infer successor takeover from expiry alone.
+- With `kv=offline`, keep local drafts and matched results, but show claim waiting for connection. Hold remote intentions without calling them published. On reconnect, refresh capabilities, permission, revisions, leases, policy, and unknown outcomes. Confirm only still-valid intentions. Never replay expired renewals or stale approvals.
 
 **Clash.**
-- Footprint labels name their source, for example `declared · kvarm intent` or `static`.
-- Each clash card shows the Kvarm `forecast` evidence with age, or `forecast truncated`. c3 stays advisory.
-- Every settlement writes a choice file and logs `record_decision` with the choice path and the decision id. Split adds a contract commit (`git_push` of `contracts/paypal.result.v1.yaml`). Split, a winning side, and one migration owner each log `set_intent` for every narrowed side. Serialize shows `after · pin waits for upstream revision` and logs no `add_dependency`. Merge logs only the blueprint commit.
-- The settled mark shows `decision synced` or `decision pending`. Ctrl Z logs a superseding decision and marks the old one `superseded`, because Kvarm cannot delete a decision idempotently.
+- Footprints name their source as Acan declaration, remote path declaration, observed edit, static analysis, or history. Remote intent is advisory and non-exclusive.
+- Clash cards show `forecastInterference` evidence, analyzed revisions, age, and coverage when supported. Missing or truncated forecasts remain unknown. Low-confidence overlap stays advisory.
+- Every settlement writes a canonical choice file and calls `publishChoice` with its ID and commit. Split commits the contract. Narrowed declarations call `declareFootprint`. Serialize remains advice until an exact upstream revision can be accepted by `pinWork`. Merge commits the blueprint. Show partial or unsupported effects separately.
+- Settled marks show local, syncing, synced, partial, or outcome unknown. Undo writes a new canonical choice revision that supersedes the old one. Do not delete history or blindly repeat a decision write after a timeout.
+- When the other side of a clash belongs to a principal you did not mint, the card names that principal with `other owner` and offers only the options that narrow your own plan. Acan never writes another principal's declaration.
 
 **Bindings and provenance.**
 - Every semantic mark reads from a binding record with channel, value, state, source class, locator, revision, and age. The mark, its label, and its popover all read the same record.
@@ -95,7 +96,13 @@ Kvarm is an opt-in connection to the user's own origin (`git.acan.local`), so ev
 - Draw five distinct states. Unknown is fog hatch, an empty bezel, and no motion. Stale is a dimmed last value with age and no motion. Zero is an explicit `0` with the needle at rest. Stopped is a dark shell with a lifecycle source. Simulated is graph-paper hatch with a `SIM` tag. Invalid draws as unknown with a reason.
 - A missing field never falls back to an `assets.mjs` demo default. Acquit's verifier draws one declared cell with unknown occupancy.
 - Failure and fog can show together.
-- Bot badges show principal, session, and evidence level: `declared`, `authenticated`, or `verified`.
+- Bot evidence shows the principal, session, source, and supported evidence basis. Preserve declared, authenticated, and verified only with their defined meaning. Unknown or missing evidence stays unknown. Authentication does not prove the model ran, and no lease proves the process is alive. A match published by another principal's Acan reads `authenticated`, never `verified`.
+
+**Other principals and the team seam.**
+- The open app draws every fact the origin reports that changes what the user may safely do, whoever caused it. That is the holder's principal label, fence, expiry, UNMATCHED, stale, declarations, forecasts, publication blocks, reviews the origin lists for you, and permission denials at the point of action. Mark a principal you did not mint `other owner`.
+- The Kvarm consent card says `Anyone with access to this repository can read what you post.`
+- The open app never turns a principal into a person's name and draws no presence, team row, handoff, proposal, follow, or shared world. Those belong to the paid team module behind the team seam (`JOURNEY.md` section 8). With no module loaded, nothing names it, and no control is disabled on its behalf.
+- With `peer=1`, droid-radar belongs to another principal on the same origin. Its chip reads `DROID · other owner · authenticated`, and the clash card follows the rule above. Nothing else changes.
 
 ## Verification contract
 
@@ -107,4 +114,4 @@ Also run `OUT=live-all-<id>.html node build.mjs` (all concepts, written to your 
 
 ## Out of scope for this round
 
-The review gate, the bench, a witness taken from Simulate for a ghost (a predicted moment, labeled as a prediction), real persistence, and any change to ui-v1 modules.
+The review gate, the bench, a witness taken from Simulate for a ghost (a predicted moment, labeled as a prediction), real persistence, any change to ui-v1 modules, and the paid team module (`JOURNEY.md` section 8).

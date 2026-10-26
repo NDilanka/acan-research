@@ -6,7 +6,7 @@ Resume file for a fresh orchestrator chat. Updated 2026-10-26. No loops. Running
 
 ## Hard rules and standing directives
 
-- **No implementation of Acan until Droid gives the go signal.** The go signal requires every line of `ui-v2/READINESS.md` (G1 to G9) to be green, ending with the user's own browser walkthrough (G8). Until then, iterate on UI and UX only.
+- **No implementation of Acan until Droid gives the go signal.** The go signal requires every line of `ui-v2/READINESS.md` (G1 to G10) to be green, ending with the user's own browser walkthrough (G8). The team bar (T1 to T4) gates only the paid team module, never the core go signal. Until then, iterate on UI and UX only.
 - **The user wants UI and UX that are excellent, with core features first.**
 - **All design builds and critiques go to Opus.** Use pv-opus-high for builds and critiques, and pv-opus-medium for prose. The second lab on review panels is Grok (pv-grok-high or pv-grok-xhigh), or Haiku (pv-haiku-max).
 - **One shell.** It is the full-bleed plant with floating glass islands in `ui-v2/shots/orders-kv-unmatched.png`. The user picked it as "the cleanest". The world-style top bar, toolbar row, framed stage and docked inspector (`shots/world-07-levels.png`) are rejected. World and the journey move onto the chosen shell.
