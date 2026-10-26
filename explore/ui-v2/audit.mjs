@@ -5,25 +5,38 @@
 // Unknowns are reported next to findings and are never counted as passes.
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { inflateSync } from "node:zlib";
 
-export const RULES = ["type-floor", "overlap", "offscreen", "contrast", "focus-ring", "transition", "egress-sum", "focus-steal"];
+// Extension point for new rules (word budgets, island positions). Each entry is
+// { rule, check(api) } where check runs inside the page, so it must be self-contained source that
+// uses only its argument and browser globals. api is { cfg, W, H, items, sel, squash, shown, inView, cs }:
+// items are the visible text runs { p, text, rects, fontPx, ... }, and cfg is CONFIG below, so put a
+// rule's settings there. check returns [{ selector, text, value, limit, detail, unknown? }].
+export const PAGE_RULES = [];
+
+export const RULES = ["type-floor", "overlap", "offscreen", "contrast", "focus-ring", "transition", "egress-sum", "focus-steal", ...PAGE_RULES.map((r) => r.rule)];
 
 // Camera easing runs in JS (build.mjs animate(), blueprint.mjs inkLoop), so no CSS camera selector needs allowing.
-// The ink-in moment is the one CSS animation the bar allows: .orders-ink in orders.mjs and .bench-ink in bench.mjs.
-export const MOTION_ALLOW = { selectors: [".orders-ink", ".bench-ink"], animations: ["orders-ink", "bench-ink"] };
+// The ink-in moment is the one CSS animation the bar allows: .orders-ink in orders.mjs, its copy
+// .quiet-ink in quiet.mjs, and .bench-ink in bench.mjs.
+export const MOTION_ALLOW = { selectors: [".orders-ink", ".quiet-ink", ".bench-ink"], animations: ["orders-ink", "quiet-ink", "bench-ink"] };
+
+// The appearance a shot was taken in. World keeps its own theme on #worldApp; the shell uses body[data-appearance].
+const APPEARANCE = `(() => { const w = document.querySelector("#worldApp"); return (w && w.dataset.theme) || document.body.dataset.appearance || "dark"; })()`;
 
 // Pills show the running byte total; logs list the ops. `section` logs read the rows after the
 // "Network log" header up to the next header. `total` logs carry the total in a header and may show
 // only the last few rows, so their rows are summed only when the header's op count matches.
 export const EGRESS = [
-  { pill: ".egress", root: "#orders-kv-panel", section: ".orders-section", row: ".orders-kv-row[data-state]", bytes: "i" },
-  { pill: ".egress", root: "#orders-kv-dock", total: "header b", count: "header span", row: ".orders-kv-row", bytes: "i" },
-  { pill: ".egress", root: "#orders-kv-card", total: "header b", count: "header span", row: ".orders-kv-row", bytes: "i" },
+  ...["orders", "quiet"].flatMap((c) => [
+    { pill: ".egress", root: `#${c}-kv-panel`, section: `.${c}-section`, row: `.${c}-kv-row[data-state]`, bytes: "i" },
+    { pill: ".egress", root: `#${c}-kv-dock`, total: "header b", count: "header span", row: `.${c}-kv-row`, bytes: "i" },
+    { pill: ".egress", root: `#${c}-kv-card`, total: "header b", count: "header span", row: `.${c}-kv-row`, bytes: "i" },
+  ]),
   { pill: ".egress", root: "#clashKvPanel", section: ".clash-kv-section", row: ".clash-kv-row[data-state]", bytes: "i" },
   { pill: ".egress", root: "#clashKv", total: "header b", count: "header span", row: ".clash-kv-row", bytes: "i" },
   { pill: ".egress", root: "#gateKv", total: "header b", count: "header span", row: ".gate-kvlog-row", bytes: "i" },
@@ -41,10 +54,12 @@ const CONFIG = {
 };
 
 // Runs in the page. Everything it needs is inside it, because it is sent as source text.
-function pageAudit(cfg) {
+function pageAudit(cfg, extra) {
   const W = innerWidth, H = innerHeight;
-  const findings = [], unknown = [], stats = {};
+  const findings = [], unknown = [], stats = {}, laps = {};
   const t0 = performance.now();
+  let tl = t0;
+  const lap = (k) => { const n = performance.now(); laps[k] = Math.round(n - tl); tl = n; };
   const csMemo = new Map();
   const cs = (e) => { let s = csMemo.get(e); if (!s) csMemo.set(e, (s = getComputedStyle(e))); return s; };
   const opMemo = new Map();
@@ -169,10 +184,11 @@ function pageAudit(cfg) {
       items.push({ p, svg, text, rects, seen, fontPx, weight: +s.fontWeight || 400, aria: !!p.closest("[aria-hidden=true]"), placeholder: !nodes && !p.value });
     }
     stats.textItems = items.length;
+    lap("text");
 
     for (const it of items) {
       if (it.aria) continue;
-      if (it.fontPx < cfg.floorPx - 0.05) findings.push({ rule: "type-floor", selector: sel(it.p), text: it.text, detail: it.fontPx.toFixed(1) + " px" });
+      if (it.fontPx < cfg.floorPx - 0.05) findings.push({ rule: "type-floor", selector: sel(it.p), text: it.text, value: it.fontPx.toFixed(1) + " px", limit: cfg.floorPx + " px", detail: it.fontPx.toFixed(1) + " px, floor " + cfg.floorPx + " px" });
     }
 
     // A label is the box it paints: a small positioned chip, pin or tag with a background or border.
@@ -249,10 +265,11 @@ function pageAudit(cfg) {
         const key = sel(A.root) + "|" + sel(B.root);
         if (seen.has(key)) continue;
         seen.add(key);
-        findings.push({ rule: "overlap", selector: sel(A.root), text: A.text, detail: "overlaps " + sel(B.root) + ' "' + B.text + '" by ' + Math.round(r - l) + "x" + Math.round(b - t) + " px" });
+        findings.push({ rule: "overlap", selector: sel(A.root), text: A.text, value: Math.round(r - l) + "x" + Math.round(b - t) + " px", limit: cfg.overlapPx + " px", detail: "overlaps " + sel(B.root) + ' "' + B.text + '" by ' + Math.round(r - l) + "x" + Math.round(b - t) + " px, limit " + cfg.overlapPx + " px" });
       }
     }
 
+    lap("overlap");
     const pillsShown = new Map();
     for (const ps of new Set(cfg.egress.map((g) => g.pill))) {
       const el = document.querySelector(ps);
@@ -284,18 +301,19 @@ function pageAudit(cfg) {
         const vals = rows.map((n) => bytesOf(n.querySelector(g.bytes) && n.querySelector(g.bytes).textContent));
         const where = sel(root);
         if (pill && pill.bytes !== null && total !== null && pill.bytes !== total)
-          findings.push({ rule: "egress-sum", selector: g.pill, text: pill.text, detail: "pill " + pill.bytes + " B, " + where + ' header "' + label + '" says ' + total + " B" });
+          findings.push({ rule: "egress-sum", selector: g.pill, text: pill.text, value: pill.bytes + " B", limit: total + " B", detail: "pill " + pill.bytes + " B, " + where + ' header "' + label + '" says ' + total + " B, must be equal" });
         if (!complete) continue;
         if (vals.some((v) => v === null)) {
           unknown.push({ rule: "egress-sum", selector: where, text: label, detail: rows.length + " rows, " + vals.filter((v) => v === null).length + " show no byte count (sending, held or a result)" });
           continue;
         }
         const sum = vals.reduce((a, b) => a + b, 0);
-        if (total !== null && sum !== total) findings.push({ rule: "egress-sum", selector: where, text: label, detail: "rows sum to " + sum + " B, header says " + total + " B" });
-        if (pill && pill.bytes !== null && sum !== pill.bytes) findings.push({ rule: "egress-sum", selector: g.pill, text: pill.text, detail: "pill " + pill.bytes + " B, " + where + " rows sum to " + sum + " B" });
+        if (total !== null && sum !== total) findings.push({ rule: "egress-sum", selector: where, text: label, value: sum + " B", limit: total + " B", detail: "rows sum to " + sum + " B, header says " + total + " B, must be equal" });
+        if (pill && pill.bytes !== null && sum !== pill.bytes) findings.push({ rule: "egress-sum", selector: g.pill, text: pill.text, value: pill.bytes + " B", limit: sum + " B", detail: "pill " + pill.bytes + " B, " + where + " rows sum to " + sum + " B, must be equal" });
       }
     }
   } finally { style.remove(); }
+  lap("egress");
 
   const surf = [...document.querySelectorAll(cfg.surfaces)].filter((e) => {
     if (!shown(e)) return false;
@@ -313,9 +331,10 @@ function pageAudit(cfg) {
     if (r.top < -1) out.push("top " + Math.round(-r.top));
     if (r.right > W + 1) out.push("right " + Math.round(r.right - W));
     if (r.bottom > H + 1) out.push("bottom " + Math.round(r.bottom - H));
-    if (out.length) findings.push({ rule: "offscreen", selector: sel(e), text: squash(e.textContent), detail: "clipped by the viewport, " + out.join(", ") + " px" + (inView(r) ? "" : ", fully outside") });
+    if (out.length) findings.push({ rule: "offscreen", selector: sel(e), text: squash(e.textContent), value: out.join(", ") + " px", limit: "0 px (1 px tolerance)", detail: "clipped by the viewport, " + out.join(", ") + " px past the edge, limit 0 px" + (inView(r) ? "" : ", fully outside") });
   }
 
+  lap("offscreen");
   const allowSel = cfg.motion.selectors.join(",");
   const motion = new Map();
   const sig = (e) => e.localName + [...e.classList].slice(0, 2).map((c) => "." + c).join("") + (e.id ? "#" + e.id : "");
@@ -328,7 +347,7 @@ function pageAudit(cfg) {
     if (s.transitionProperty === "none" || !s.transitionDuration.split(",").some((v) => parseFloat(v) > 0)) continue;
     if (e.matches(allowSel) || !seenMotion(e)) continue;
     const k = "transition " + sig(e);
-    const m = motion.get(k) || { rule: "transition", selector: sel(e), text: squash(e.textContent).slice(0, 40), detail: "transition: " + s.transitionProperty + " " + s.transitionDuration, n: 0 };
+    const m = motion.get(k) || { rule: "transition", selector: sel(e), text: squash(e.textContent).slice(0, 40), value: s.transitionProperty + " " + s.transitionDuration, limit: "none outside the allowlist", detail: "transition: " + s.transitionProperty + " " + s.transitionDuration + ", allowed only on " + cfg.motion.selectors.join(" "), n: 0 };
     m.n++; motion.set(k, m);
   }
   stats.motionScanned = scanned;
@@ -340,11 +359,12 @@ function pageAudit(cfg) {
     if (e.matches(allowSel)) continue;
     const what = a.animationName ? "animation " + a.animationName : a.transitionProperty ? "running transition " + a.transitionProperty : "script animation";
     const k = what + " " + sig(e);
-    const m = motion.get(k) || { rule: "transition", selector: sel(e) + (a.effect.pseudoElement || ""), text: squash(e.textContent).slice(0, 40), detail: what, n: 0 };
+    const m = motion.get(k) || { rule: "transition", selector: sel(e) + (a.effect.pseudoElement || ""), text: squash(e.textContent).slice(0, 40), value: what, limit: "none outside the allowlist", detail: what + " running at the shot, allowed only " + cfg.motion.animations.join(" "), n: 0 };
     m.n++; motion.set(k, m);
   }
   for (const m of motion.values()) { m.detail += m.n > 1 ? " · " + m.n + " elements" : ""; delete m.n; findings.push(m); }
 
+  lap("motion");
   const contrast = [], moving = [];
   stats.contrastExempt = 0;
   for (const it of items) {
@@ -361,6 +381,12 @@ function pageAudit(cfg) {
     contrast.push({ ...base, fg, alpha, need: large ? 3 : 4.5, large, rects: it.seen.map(box) });
     moving.push([it.p, it.p.getBoundingClientRect()]);
   }
+  for (const [rule, check] of extra) {
+    try { for (const f of check({ cfg, W, H, items, sel, squash, shown, inView, cs }) || []) { const u = f.unknown; delete f.unknown; (u ? unknown : findings).push({ rule, ...f }); } }
+    catch (e) { unknown.push({ rule, selector: "", text: "", detail: "rule threw: " + e.message }); }
+  }
+  lap("contrast+rules");
+  stats.laps = laps;
   window.__acanAuditMoving = moving;
   stats.contrastItems = contrast.length;
   stats.collectMs = Math.round(performance.now() - t0);
@@ -438,20 +464,30 @@ const CONTRAST_MOVED = `new Promise((ok) => {
   setTimeout(done, 120);
 })`;
 
+// Pixel sampling runs in Node and the page clock keeps running while it does, so it is deferred:
+// drive.mjs calls r.finish() once the steps are done. Only the page reads happen at the shot.
 export async function audit({ send, evaluate }, shotBase64) {
-  const r = await evaluate("(" + pageAudit.toString() + ")(" + JSON.stringify(CONFIG) + ")");
+  const extra = "[" + PAGE_RULES.map((p) => "[" + JSON.stringify(p.rule) + "," + p.check.toString() + "]").join(",") + "]";
+  const r = await evaluate("(" + pageAudit.toString() + ")(" + JSON.stringify(CONFIG) + "," + extra + ")");
   const { contrast, view } = r;
   delete r.contrast; delete r.view;
+  r.stats.appearance = await evaluate(APPEARANCE);
   if (!contrast.length) return r;
-  const t = Date.now();
-  let img = null;
-  try { img = decodePng(Buffer.from(shotBase64 || (await send("Page.captureScreenshot", { format: "png" })).data, "base64")); }
-  catch (e) { for (const c of contrast) r.unknown.push({ rule: "contrast", selector: c.selector, text: c.text, detail: "screenshot not readable: " + e.message }); return r; }
-  const sx = img.w / view[0], sy = img.h / view[1];
+  const png = shotBase64 || (await send("Page.captureScreenshot", { format: "png" })).data;
   // The shot was taken before the geometry was read. Text that moved since SHOT_MARK, or is still
   // moving (a camera ease, a walking chip), may sit somewhere else in the shot, so its sample
   // would be of whatever was there instead.
   const moved = await evaluate(CONTRAST_MOVED);
+  Object.defineProperty(r, "finish", { enumerable: false, value: () => sampleContrast(r, contrast, moved, view, png) });
+  return r;
+}
+
+function sampleContrast(r, contrast, moved, view, png) {
+  const t = Date.now();
+  let img = null;
+  try { img = decodePng(Buffer.from(png, "base64")); }
+  catch (e) { for (const c of contrast) r.unknown.push({ rule: "contrast", selector: c.selector, text: c.text, detail: "screenshot not readable: " + e.message }); return r; }
+  const sx = img.w / view[0], sy = img.h / view[1];
   for (const [i, c] of contrast.entries()) {
     if (moved[i]) { r.unknown.push({ rule: "contrast", selector: c.selector, text: c.text, detail: moved[i] }); continue; }
     const fgRgb = c.fg.slice(0, 3);
@@ -463,11 +499,14 @@ export async function audit({ send, evaluate }, shotBase64) {
       if (!worst || q < worst.q) worst = { q, bg, shown };
     }
     if (!worst) { r.unknown.push({ rule: "contrast", selector: c.selector, text: c.text, detail: "no background pixels apart from the text colour" }); continue; }
-    if (worst.q < c.need) r.findings.push({ rule: "contrast", selector: c.selector, text: c.text, detail: worst.q.toFixed(2) + ":1, needs " + c.need + ":1 · text rgb(" + worst.shown.map(Math.round).join(",") + ") on rgb(" + worst.bg.map(Math.round).join(",") + ")" + (c.large ? " · large" : "") });
+    if (worst.q < c.need) r.findings.push({ rule: "contrast", selector: c.selector, text: c.text, value: worst.q.toFixed(2) + ":1", limit: c.need + ":1", detail: worst.q.toFixed(2) + ":1, needs " + c.need + ":1 · text rgb(" + worst.shown.map(Math.round).join(",") + ") on rgb(" + worst.bg.map(Math.round).join(",") + ")" + (c.large ? " · large" : "") });
   }
   r.stats.sampleMs = Date.now() - t;
   return r;
 }
+
+// Returns each control followed by its parent and grandparent, so one getProperties call yields
+// every node the audit forces.
 function pageFocusList(cap) {
   const W = innerWidth, H = innerHeight;
   const opacity = (e) => { let v = 1; for (let n = e; n && n.nodeType === 1; n = n.parentElement) v *= +getComputedStyle(n).opacity; return v; };
@@ -480,60 +519,95 @@ function pageFocusList(cap) {
   });
   window.__acanFocusTotal = all.length;
   window.__acanFocusBefore = document.activeElement;
-  return all.slice(0, cap);
+  return all.slice(0, cap).flatMap((e) => [e, e.parentElement, e.parentElement && e.parentElement.parentElement]);
 }
 
 function pageFocusLook() {
   const look = (e, pseudo) => { if (!e) return ""; const s = getComputedStyle(e, pseudo); return [s.outlineStyle, s.outlineWidth, s.outlineColor, s.outlineOffset, s.boxShadow, s.borderTopColor, s.borderRightColor, s.borderBottomColor, s.borderLeftColor, s.borderTopWidth, s.borderBottomWidth].join("|"); };
   const ring = (e) => { const s = getComputedStyle(e); return s.outlineStyle !== "none" && parseFloat(s.outlineWidth) > 0 ? "outline " + s.outlineWidth + " " + s.outlineStyle : ""; };
   const sib = this.nextElementSibling, par = this.parentElement, gp = par && par.parentElement;
-  return { parts: [look(this), look(this, "::before"), look(this, "::after"), look(sib), look(par), look(gp)], ring: ring(this) };
+  return { parts: [look(this), look(this, "::before"), look(this, "::after"), look(sib), look(par), look(gp)], ring: ring(this), shadow: getComputedStyle(this).boxShadow !== "none", active: this.matches(":focus") };
 }
 
-const focusDescribe = "function(){const p=(n)=>n.id?'#'+n.id:n.localName+[...n.classList].slice(0,2).map(c=>'.'+c).join('');let a=this.parentElement;while(a&&!a.id&&a!==document.body)a=a.parentElement;return{selector:(a&&a.id&&!this.id?p(a)+' ':'')+p(this),text:(this.getAttribute('aria-label')||this.textContent||this.value||'').replace(/\\s+/g,' ').trim().slice(0,60)}}";
+const focusDescribe = "function(){const p=(n)=>n.id?'#'+n.id:n.localName+[...n.classList].slice(0,2).map(c=>'.'+c).join('');let a=this.parentElement;while(a&&!a.id&&a!==document.body)a=a.parentElement;const text=(this.getAttribute('aria-label')||this.textContent||this.value||'').replace(/\\s+/g,' ').trim().slice(0,60);return{selector:(a&&a.id&&!this.id?p(a)+' ':'')+p(this),text,key:[this.localName,this.id,this.className,this.type,this.disabled,...['role','aria-pressed','aria-expanded','aria-current','aria-selected','aria-checked'].map(k=>this.getAttribute(k)),this.parentElement&&this.parentElement.localName+'.'+this.parentElement.getAttribute('class')].join('|')}}";
+const focusInfo = "function(){return{who:(" + focusDescribe + ").call(this),plain:(" + pageFocusLook.toString() + ").call(this)}}";
+
+// Verdicts carry over between focus audits in one drive run, and are shared inside one audit. A
+// control with the same tag, id, classes, role, ARIA state and parent tag and classes in the same
+// appearance is taken to get the same focus style, so only the first one is forced. Its text is
+// left out of the key so that pins and rows whose labels change still share one verdict.
+const focusVerdicts = new Map();
 
 // Forces :focus and :focus-visible through CDP instead of pressing Tab, because Tab and focus
 // handlers are bound by ui-v1 and the concepts; real focus would change selection mid-flow.
+// The page clock keeps running during the audit and steps files time their waits against it, and
+// each CDP round trip can wait a renderer frame, so commands go out pipelined: every control's
+// force, read and release burst is sent at once. CDP runs a session's commands in order, so each
+// read still sees only its own control forced.
 export async function auditFocus({ send, evaluate }, { cap = 80 } = {}) {
-  const findings = [], unknown = [];
-  await send("DOM.enable"); await send("CSS.enable");
-  await send("DOM.getDocument", { depth: 0 });
+  const t = Date.now(), findings = [], unknown = [], phases = {};
+  const lap = (k) => { phases[k] = Date.now() - t - Object.values(phases).reduce((a, b) => a + b, 0); };
   const call = async (objectId, fn) => (await send("Runtime.callFunctionOn", { objectId, functionDeclaration: fn, returnByValue: true })).result.value;
-  const list = await send("Runtime.evaluate", { expression: "(" + pageFocusList.toString() + ")(" + cap + ")", returnByValue: false });
+  const node = async (objectId) => objectId ? (await send("DOM.requestNode", { objectId })).nodeId : null;
+  const force = (nodeId, forcedPseudoClasses) => send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses });
+  const [, , , list, appearance] = await Promise.all([
+    send("DOM.enable"), send("CSS.enable"), send("DOM.getDocument", { depth: 0 }),
+    send("Runtime.evaluate", { expression: "(" + pageFocusList.toString() + ")(" + cap + ")", returnByValue: false }),
+    evaluate(APPEARANCE),
+  ]);
   const props = await send("Runtime.getProperties", { objectId: list.result.objectId, ownProperties: true });
-  const ids = props.result.filter((p) => /^\d+$/.test(p.name)).map((p) => p.value.objectId);
-  const parents = async (objectId) => {
-    const out = [];
-    let cur = objectId;
-    for (let i = 0; i < 2; i++) {
-      const r = await send("Runtime.callFunctionOn", { objectId: cur, functionDeclaration: "function(){return this.parentElement}", returnByValue: false });
-      if (!r.result.objectId) break;
-      cur = r.result.objectId;
-      out.push((await send("DOM.requestNode", { objectId: cur })).nodeId);
+  const flat = [];
+  for (const p of props.result) if (/^\d+$/.test(p.name)) flat[+p.name] = p.value && p.value.objectId;
+  const n = Math.floor(flat.length / 3);
+  let reused = 0;
+  lap("list");
+  const controls = await Promise.all(Array.from({ length: n }, async (_, k) => {
+    const objectId = flat[3 * k];
+    const [info, ...nodes] = await Promise.allSettled([call(objectId, focusInfo), ...[0, 1, 2].map((j) => node(flat[3 * k + j]))]);
+    if (info.status === "rejected") return { who: { selector: "focusable #" + (k + 1), text: "" }, error: String(info.reason && info.reason.message) };
+    const { who, plain } = info.value, key = appearance + "|" + who.key;
+    if (!plain.active && focusVerdicts.has(key)) return { who, plain, key, cached: focusVerdicts.get(key) };
+    const bad = nodes.find((x) => x.status === "rejected");
+    if (bad) return { who, error: String(bad.reason && bad.reason.message) };
+    return { objectId, who, plain, key, self: nodes[0].value, up: nodes.slice(1).map((x) => x.value).filter((x) => x) };
+  }));
+  lap("describe");
+  const first = new Set();
+  const looks = controls.map((c) => {
+    if (c.error || c.cached !== undefined || c.plain.active) return null;
+    if (first.has(c.key)) { c.dup = true; return null; }
+    first.add(c.key);
+    const on = [force(c.self, ["focus", "focus-visible"]), ...c.up.map((u) => force(u, ["focus-within"]))];
+    const look = call(c.objectId, pageFocusLook.toString());
+    const off = [c.self, ...c.up].map((u) => force(u, []));
+    return Promise.all([look, ...on, ...off]).then(([v]) => v, (e) => ({ error: e.message }));
+  });
+  const focusedLooks = await Promise.all(looks);
+  for (const [i, c] of controls.entries()) {
+    if (c.error) { unknown.push({ rule: "focus-ring", selector: c.who.selector, text: c.who.text, detail: c.error }); continue; }
+    if (c.dup) c.cached = focusVerdicts.has(c.key) ? focusVerdicts.get(c.key) : undefined;
+    if (c.cached !== undefined) { reused++; if (c.cached) findings.push({ ...c.cached, selector: c.who.selector, text: c.who.text }); continue; }
+    if (c.dup) { unknown.push({ rule: "focus-ring", selector: c.who.selector, text: c.who.text, detail: "shares a key with a control the audit could not read" }); continue; }
+    // Real focus cannot be lifted by forcePseudoState, so the focused control is judged on its own look.
+    if (c.plain.active) {
+      if (!c.plain.ring && !c.plain.shadow) findings.push({ rule: "focus-ring", selector: c.who.selector, text: c.who.text, value: "no outline or box-shadow", limit: "a visible outline or box-shadow", detail: "has focus now and shows no outline or box-shadow" });
+      continue;
     }
-    return out;
-  };
-  for (const objectId of ids) {
-    const who = await call(objectId, focusDescribe);
-    try {
-      const { nodeId } = await send("DOM.requestNode", { objectId });
-      const up = await parents(objectId);
-      const plain = await call(objectId, pageFocusLook.toString());
-      await send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: ["focus", "focus-visible"] });
-      for (const n of up) await send("CSS.forcePseudoState", { nodeId: n, forcedPseudoClasses: ["focus-within"] });
-      const focused = await call(objectId, pageFocusLook.toString());
-      await send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: [] });
-      for (const n of up) await send("CSS.forcePseudoState", { nodeId: n, forcedPseudoClasses: [] });
-      if (focused.parts.every((v, i) => v === plain.parts[i]))
-        findings.push({ rule: "focus-ring", selector: who.selector, text: who.text, detail: "focused style equals unfocused style" + (plain.ring ? " (" + plain.ring + " in both)" : ", no outline, box-shadow or border change") });
-    } catch (e) { unknown.push({ rule: "focus-ring", selector: who.selector, text: who.text, detail: e.message }); }
+    const focused = focusedLooks[i];
+    if (focused.error) { unknown.push({ rule: "focus-ring", selector: c.who.selector, text: c.who.text, detail: focused.error }); continue; }
+    const f = focused.parts.every((v, k) => v === c.plain.parts[k])
+      ? { rule: "focus-ring", selector: c.who.selector, text: c.who.text, value: "no change", limit: "a visible outline, box-shadow or border change", detail: "focused style equals unfocused style" + (c.plain.ring ? " (" + c.plain.ring + " in both)" : ", no outline, box-shadow or border change") }
+      : null;
+    focusVerdicts.set(c.key, f);
+    if (f) findings.push(f);
   }
-  const total = await evaluate("window.__acanFocusTotal");
-  const moved = await evaluate("(() => { const b = window.__acanFocusBefore; delete window.__acanFocusBefore; delete window.__acanFocusTotal; if (document.activeElement === b) return false; if (b && b.isConnected) b.focus({ preventScroll: true }); return true; })()");
-  await send("CSS.disable"); await send("DOM.disable");
-  return { findings, unknown, stats: { focusable: total, checked: ids.length, restored: moved } };
+  lap("force");
+  const [total, moved] = await evaluate("(() => { const b = window.__acanFocusBefore, total = window.__acanFocusTotal; delete window.__acanFocusBefore; delete window.__acanFocusTotal; if (document.activeElement === b) return [total, false]; if (b && b.isConnected) b.focus({ preventScroll: true }); return [total, true]; })()");
+  // Nothing waits on the release: later commands queue behind it.
+  for (const m of ["CSS.disable", "DOM.disable"]) send(m).catch(() => {});
+  lap("restore");
+  return { findings, unknown, stats: { focusable: total, checked: n, reused, restored: moved, appearance, phases, ms: Date.now() - t } };
 }
-
 // A re-render that swaps the focused node for an equal one and refocuses it has not moved focus,
 // so the mark keeps a description to compare when the old node is gone.
 const FOCUS_SAY = `const d = (e) => !e || e === document.body ? "body|" : (e.id ? "#" + e.id : e.localName + [...e.classList].slice(0, 2).map((c) => "." + c).join("")) + "|" + (e.getAttribute("aria-label") || e.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 60);`;
@@ -549,95 +623,213 @@ export const FOCUS_CHECK = `(() => {
   // place, and the removal is usually the late result of an earlier key. The audit cannot tell, so
   // it reports the move as unknown.
   if (was && was !== document.body && !was.isConnected) return { unknown: true, rule: "focus-steal", selector: sel, text, detail: "focus moved from " + sayWas + " (removed from the page) to " + sel };
-  return { rule: "focus-steal", selector: sel, text, detail: "focus moved from " + sayWas + " to " + sel + " with no input" };
+  return { rule: "focus-steal", selector: sel, text, value: "moved to " + sel, limit: "no move without input", detail: "focus moved from " + sayWas + " to " + sel + " with no input" };
 })()`;
 
-// node audit.mjs selftest <live-*.html>  plants one violation per rule plus clean controls, and checks each rule fires once.
-// node audit.mjs report <outDir>...      prints the concept-by-rule table and the most frequent findings per concept.
-const FIXTURE = `(() => {
-  document.body.insertAdjacentHTML("beforeend", \`
-  <style>#fxKeep{outline:none}#fxKeep:focus-visible{outline:2px solid #fff}</style>
-  <div id="fxBack" style="position:fixed;left:560px;top:240px;width:420px;height:300px;background:#000;z-index:99998"></div>
-  <div id="fxBox" style="position:fixed;left:580px;top:260px;z-index:99999;font:14px sans-serif;color:#eee">
-    <div id="fxTiny" style="position:absolute;left:0;top:0;white-space:nowrap;font-size:9px">tiny text</div>
-    <div id="fxDim" style="position:absolute;left:0;top:30px;white-space:nowrap;color:#444">dim text</div>
-    <div id="fxGood" style="position:absolute;left:200px;top:0;white-space:nowrap;font-size:13px;color:#ddd">good text</div>
-    <div id="fxA" style="position:absolute;left:0;top:60px;white-space:nowrap;background:#222">label A</div>
-    <div id="fxB" style="position:absolute;left:24px;top:66px;white-space:nowrap;background:#222">label B</div>
-    <div data-audit-stack style="position:absolute;left:200px;top:60px"><div id="fxC" style="position:absolute;white-space:nowrap;background:#222">stack C</div><div id="fxD" style="position:absolute;left:8px;top:6px;white-space:nowrap;background:#222">stack D</div></div>
-    <div id="fxMove" style="position:absolute;left:0;top:120px;white-space:nowrap;transition:opacity .3s">moving</div>
-    <div style="position:absolute;left:200px;top:120px;transform:scale(.7);transform-origin:0 0"><div id="fxShrunk" style="white-space:nowrap">shrunk text</div></div>
-    <div id="fxSlide" style="position:absolute;left:200px;top:200px;white-space:nowrap;color:#333">sliding</div>
-    <button id="fxRing" style="position:absolute;left:0;top:160px;outline:none!important;background:#000;color:#fff;border:0;font:14px sans-serif">no ring</button>
-    <button id="fxKeep" style="position:absolute;left:200px;top:160px;background:#000;color:#fff;border:0;font:14px sans-serif">kept</button>
-    <div id="gateKv" style="position:absolute;left:0;top:200px;background:#000"><header><span>x · 2 ops</span> <b>150 B</b></header><div class="gate-kvlog-row"><b>a</b> <i>100 B</i></div><div class="gate-kvlog-row"><b>b</b> <i>40 B</i></div></div>
-  </div>
-  <div id="fxCard" role="dialog" style="position:fixed;left:1500px;top:600px;width:300px;height:100px;background:#111;color:#eee;z-index:99999;font:14px sans-serif">card</div>\`);
-  document.querySelector(".egress").innerHTML = '<span class="dot"></span>local + kvarm · 100 B out';
-  document.querySelector("#fxKeep").focus();
-  setTimeout(() => { const o = document.querySelector("#fxKeep"), n = o.cloneNode(true); o.replaceWith(n); n.focus(); }, 100);
-  const slide = document.querySelector("#fxSlide");
-  (function tick(t) { slide.style.left = 200 + (t / 4) % 100 + "px"; requestAnimationFrame(tick); })(0);
-  return true;
-})()`;
-const SELFTEST_STEPS = [
-  { eval: FIXTURE, expect: true },
-  { wait: 400 },
-  { eval: "setTimeout(() => document.querySelector('#fxRing').focus(), 100); true", expect: true },
-  { wait: 400 },
-  { eval: "const g = document.createElement('button'); g.id = 'fxGone'; document.body.append(g); g.focus(); setTimeout(() => { g.remove(); document.querySelector('#fxKeep').focus(); }, 100); true", expect: true },
-  { wait: 400 },
-  { shot: "selftest" },
-  { audit: "focus" },
-];
-const SELFTEST_EXPECT = [
-  ["type-floor", /#fxTiny/, 1], ["type-floor", /#fxShrunk/, 1], ["type-floor", /#fxGood/, 0],
-  ["contrast", /#fxDim/, 1], ["contrast", /#fxGood/, 0], ["contrast", /#fxSlide/, 0],
-  ["overlap", /#fx[AB]\b/, 1], ["overlap", /#fx[CD]\b/, 0],
-  ["offscreen", /#fxCard/, 1],
-  ["transition", /#fxMove/, 1],
-  ["egress-sum", /\.egress|#gateKv/, 3],
-  ["focus-steal", /#fxRing/, 1], ["focus-steal", /#fxKeep/, 0],
-  ["focus-ring", /#fxRing/, 1], ["focus-ring", /#fxKeep/, 0],
-];
+// node audit.mjs selftest [dir]                  drives a broken and a clean fixture page through drive.mjs and checks
+//                                                that every rule fires on the broken page and stays quiet on the clean one.
+//                                                dir defaults to <tmp>/audit-fixtures.
+// node audit.mjs steps <outDir> <steps.json>...  writes <outDir>/dark and <outDir>/light variants of steps files, with a
+//                                                {"audit":"focus"} step after every shot, to pass to run-steps.mjs.
+// node audit.mjs report <outRoot>...             prints per-rule counts per steps file and appearance, then the top findings.
+// A rule added to PAGE_RULES needs a planted case in FIXTURES.broken.expect, or the selftest fails it.
+// The same lock dir run-steps.mjs takes, so fixture drives never overlap a concept drive.
+const LOCK = join(tmpdir(), "acan-drive.lock");
+const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+function locked(fn) {
+  for (;;) { try { mkdirSync(LOCK); break; } catch (e) { if (e.code !== "EEXIST") throw e; sleepSync(500); } }
+  try { return fn(); } finally { rmSync(LOCK, { recursive: true, force: true }); }
+}
+const FIXTURE_CSS = `body{margin:0;background:#101214;color:#e6e6e6;font:14px/1.3 sans-serif}
+.a{position:absolute;white-space:nowrap}.tag{background:#2a2d31;padding:2px 6px}
+button{position:absolute;background:#000;color:#fff;border:1px solid #555;font:14px sans-serif;padding:4px 8px}
+.egress{position:absolute;left:1300px;top:20px;padding:4px 10px;background:#1c1f22}
+#gateKv{position:absolute;left:400px;top:260px;width:240px;padding:6px;background:#000}
+#gateKv header,.gate-kvlog-row{display:flex;justify-content:space-between}#gateKv i{font-style:normal}
+[role=dialog]{position:fixed;top:600px;width:300px;height:100px;padding:8px;background:#1c1f22}
+.glass{position:absolute;left:40px;top:240px;width:260px;height:36px;background:#fff}.glass>div{position:absolute;inset:0;background:rgba(0,0,0,.85)}
+#fxKeep,.keep{outline:none}#fxKeep:focus-visible,.keep:focus-visible{outline:2px solid #fff}
+@keyframes fxPulse{to{opacity:.6}}`;
+const kvLog = (pill, total, rows) => `<span class="egress">local + kvarm · ${pill} B out</span><div id="gateKv"><header><span>log · ${rows.length} ops</span> <b>${total} B</b></header>${rows.map((b, i) => `<div class="gate-kvlog-row"><b>op ${i + 1}</b> <i>${b} B</i></div>`).join("")}</div>`;
+const fixturePage = (body) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>audit fixture</title><style>${FIXTURE_CSS}</style></head><body>${body}</body></html>`;
 
-function report(dirs) {
-  const rows = [], tops = [];
-  for (const dir of dirs) {
-    const s = JSON.parse(readFileSync(join(dir, "audit-summary.json"), "utf8"));
-    const name = basename(dir).replace(/^audit-/, "");
-    rows.push("| " + name + " | " + RULES.map((r) => s.summary[r].findings + " (" + s.summary[r].distinct + ")" + (s.summary[r].unknown ? " ?" + s.summary[r].unknown : "")).join(" | ") + " |");
-    const seen = new Map();
-    for (const a of s.audits) for (const f of a.findings) {
-      const k = f.rule + "|" + f.selector + "|" + f.text;
-      const e = seen.get(k) || { f, shots: new Set() };
-      e.shots.add(a.shot); seen.set(k, e);
+// #fxGlass and #fxGlassOk sit on an 85% black layer over white. Reading the nearest opaque background
+// would call black-on-it 21:1 and white-on-it 1:1; the composited shot gives 1.4:1 and 15:1.
+// #fxMid and #fxLarge share #7a7a7a (4.4:1): it fails at 14 px and passes the 3:1 large-text bar at 24 px.
+const FIXTURES = {
+  broken: {
+    html: fixturePage(`
+<div class="a" id="fxTiny" style="left:40px;top:40px;font-size:9px">tiny text</div>
+<div class="a" style="left:40px;top:70px;transform:scale(.7);transform-origin:0 0"><span id="fxShrunk">shrunk text</span></div>
+<svg class="a" style="left:40px;top:100px" width="200" height="30"><text id="fxSvgTiny" x="0" y="40" font-size="20" transform="scale(.45)" fill="#e6e6e6">svg tiny</text></svg>
+<div class="a" id="fxDim" style="left:40px;top:150px;color:#444">dim text</div>
+<div class="a" id="fxFaded" style="left:40px;top:180px;color:#fff;opacity:.3">faded text</div>
+<div class="a" id="fxMid" style="left:40px;top:210px;color:#7a7a7a">mid grey body text</div>
+<div class="glass"><div><span class="a" id="fxGlass" style="left:8px;top:9px;color:#000">black on dark glass</span></div></div>
+<div class="a tag" id="fxA" style="left:400px;top:40px">label A</div>
+<div class="a tag" id="fxB" style="left:430px;top:48px">label B</div>
+<div class="a" id="fxMove" style="left:400px;top:120px;transition:opacity .3s">fades on change</div>
+<div class="a" id="fxPulse" style="left:400px;top:150px;animation:fxPulse 1s infinite alternate">pulses</div>
+<button id="fxRing" style="left:400px;top:200px;outline:none">no ring</button>
+${[1, 2].map((i) => `<button id="fxRing${i + 1}" style="left:${400 + i * 110}px;top:340px;outline:none">no ring ${i + 1}</button>`).join("")}
+${[1, 2, 3].map((i) => `<button class="keep" style="left:${700 + i * 90}px;top:340px">ring ${i}</button>`).join("")}
+${kvLog(100, 150, [100, 40])}
+<div role="dialog" id="fxCard" style="left:1450px">card past the edge</div>`),
+    steps: [
+      { eval: "setTimeout(() => document.querySelector('#fxRing').focus(), 100); true", expect: true },
+      { wait: 400 },
+      { key: "Tab" },
+      { eval: "[document.activeElement.id, document.activeElement.matches(':focus')]", expect: ["fxRing2", true] },
+      { shot: "broken" },
+      { audit: "focus" },
+      { audit: "focus" },
+    ],
+    expect: {
+      "type-floor": [/#fxTiny/, /#fxShrunk/, /#fxSvgTiny/],
+      overlap: [/#fx[AB]\b/],
+      offscreen: [/#fxCard/],
+      contrast: [/#fxDim/, /#fxFaded/, /#fxMid/, /#fxGlass/],
+      "focus-ring": [/#fxRing$/, /#fxRing2$/, /#fxRing3$/, /#fxRing$/, /#fxRing2$/, /#fxRing3$/],
+      transition: [/#fxMove/, /#fxPulse/],
+      "egress-sum": [/^\.egress$/, /#gateKv/, /^\.egress$/],
+      "focus-steal": [/#fxRing/],
+    },
+    focusedRing: /#fxRing2$/,
+  },
+  clean: {
+    html: fixturePage(`
+<div class="a" id="fxFloor" style="left:40px;top:40px;font-size:11px">eleven px text</div>
+<div class="a" style="left:40px;top:70px;transform:scale(.75);transform-origin:0 0"><span id="fxScaled" style="font-size:16px">scaled to 12 px</span></div>
+<svg class="a" style="left:40px;top:100px" width="200" height="30"><text id="fxSvgOk" x="0" y="50" font-size="30" transform="scale(.4)" fill="#e6e6e6">svg at 12 px</text></svg>
+<div class="a" id="fxBright" style="left:40px;top:150px;color:#ccc">bright text</div>
+<div class="a" id="fxSoft" style="left:40px;top:175px;color:#fff;opacity:.85">mostly opaque text</div>
+<div class="a" id="fxLarge" style="left:40px;top:200px;color:#7a7a7a;font-size:24px">large grey</div>
+<div class="glass"><div><span class="a" id="fxGlassOk" style="left:8px;top:9px;color:#fff">white on dark glass</span></div></div>
+<div class="a" data-audit-stack style="left:400px;top:40px"><div class="a tag" id="fxC">stack C</div><div class="a tag" id="fxD" style="left:30px;top:8px">stack D</div></div>
+<div class="a tag" id="fxE" style="left:560px;top:40px">label E</div>
+<div class="a orders-ink" id="fxInk" style="left:400px;top:120px;transition:clip-path .5s">ink in, allowed</div>
+<div class="a" id="fxSlide" style="left:40px;top:300px;color:#333">sliding text</div>
+<button id="fxKeep" style="left:400px;top:200px">kept ring</button>
+${[1, 2, 3, 4, 5, 6, 7, 8].map((i) => `<button class="keep" style="left:${400 + i * 90}px;top:340px">ring ${i}</button>`).join("")}
+${kvLog(140, 140, [100, 40])}
+<div role="dialog" id="fxCardOk" style="left:1200px">card in view</div>
+<script>const slide = document.querySelector("#fxSlide"); (function tick(t) { slide.style.left = 40 + (t / 4) % 100 + "px"; requestAnimationFrame(tick); })(0);</script>`),
+    steps: [
+      { eval: "document.querySelector('#fxKeep').focus(); setTimeout(() => { const o = document.querySelector('#fxKeep'), n = o.cloneNode(true); o.replaceWith(n); n.focus(); }, 100); true", expect: true },
+      { wait: 400 },
+      { eval: "const g = document.createElement('button'); g.id = 'fxGone'; g.textContent = 'gone'; g.style.cssText = 'left:700px;top:200px'; document.body.append(g); g.focus(); setTimeout(() => { g.remove(); document.querySelector('#fxKeep').focus(); }, 100); true", expect: true },
+      { wait: 400 },
+      { key: "Tab" },
+      { eval: "[document.activeElement.className, document.activeElement.matches(':focus-visible')]", expect: ["keep", true] },
+      { shot: "clean" },
+      { audit: "focus" },
+    ],
+    expect: {},
+    unknown: [
+      ["focus-steal", /#fxKeep/, "focus placed on a successor after its control was removed is unknown, not a finding"],
+      ["contrast", /#fxSlide/, "text moving at the shot is contrast unknown, not a finding"],
+    ],
+    stack: true,
+  },
+};
+
+function selftest(dir) {
+  mkdirSync(dir, { recursive: true });
+  const drive = join(dirname(fileURLToPath(import.meta.url)), "drive.mjs"), checks = [];
+  for (const [name, fx] of Object.entries(FIXTURES)) {
+    const html = join(dir, name + ".html"), steps = join(dir, name + ".steps.json"), out = join(dir, name);
+    writeFileSync(html, fx.html); writeFileSync(steps, JSON.stringify(fx.steps));
+    const run = locked(() => spawnSync(process.execPath, [drive, html, "", steps, out], { env: { ...process.env, AUDIT: "1" }, encoding: "utf8" }));
+    writeFileSync(join(dir, name + ".log"), run.stdout + run.stderr);
+    checks.push([name + ": drive ran with no page errors or step failures", /^OK\r?$/m.test(run.stdout)]);
+    const s = JSON.parse(readFileSync(join(out, "audit-summary.json"), "utf8"));
+    const all = s.audits.flatMap((a) => a.findings), unk = s.audits.flatMap((a) => a.unknown);
+    for (const rule of RULES) {
+      const got = all.filter((f) => f.rule === rule), want = fx.expect[rule] || [];
+      const planted = name !== "broken" || want.length > 0;
+      const ok = planted && got.length === want.length && want.every((re) => got.some((f) => re.test(f.selector)));
+      checks.push([`${name}: ${rule} ${got.length} findings, want ${want.length}` + (planted ? "" : " (no planted case in FIXTURES.broken.expect)") + got.map((f) => " · " + f.selector + " " + (f.value || f.detail) + (f.limit ? " vs " + f.limit : "")).join(""), ok]);
     }
-    tops.push("\n### " + name + "\n");
-    for (const r of RULES) {
-      const list = [...seen.values()].filter((e) => e.f.rule === r).sort((a, b) => b.shots.size - a.shots.size).slice(0, 6);
-      for (const { f, shots } of list) tops.push("- " + r + " · `" + f.selector + "` · \"" + f.text + "\" · " + f.detail + " · " + shots.size + " shots");
-    }
+    for (const [rule, re, what] of fx.unknown || []) checks.push([name + ": " + what, unk.some((u) => u.rule === rule && re.test(u.selector))]);
+    const focusRuns = s.audits.filter((a) => /-focus$/.test(a.shot));
+    if (focusRuns.length > 1) checks.push([name + ": a repeat focus audit reuses verdicts and reports the same findings", focusRuns[1].stats.reused >= 2 && focusRuns[1].findings.length === focusRuns[0].findings.length]);
+    if (fx.focusedRing) checks.push([name + ": the control with real focus is judged on its own look", all.some((f) => f.rule === "focus-ring" && fx.focusedRing.test(f.selector) && /has focus now/.test(f.detail))]);
+    if (fx.stack) checks.push([name + ": data-audit-stack opt-out counted and skipped", s.audits.some((a) => a.stats.stackOptOuts === 1 && a.stats.stackSkips >= 1)]);
   }
-  return "| run | " + RULES.join(" | ") + " |\n|" + "---|".repeat(RULES.length + 1) + "\n" + rows.join("\n") + "\n" + tops.join("\n");
+  return checks;
+}
+
+// The shell's light switch is shellAppearance() in build.mjs, which sets body[data-appearance] and the
+// Layers select; the attribute also re-themes the plant drawing.
+// World has its own F8 toggle and forces dark in its first step, so its light variant swaps every
+// quoted 'dark' and 'light', which starts the run in light and keeps its theme checks consistent.
+const LIGHT = "typeof shellAppearance === 'function' ? shellAppearance('light') : (document.body.dataset.appearance = 'light'); true";
+function variants(outDir, files) {
+  for (const look of ["dark", "light"]) mkdirSync(join(outDir, look), { recursive: true });
+  for (const f of files) {
+    const src = readFileSync(f, "utf8"), dark = JSON.parse(src).flatMap((s) => (s.shot ? [s, { audit: "focus" }] : [s]));
+    const light = /"key":\s*"F8"/.test(src)
+      ? JSON.parse(JSON.stringify(dark).replace(/(\\"|'|")(dark|light)\1/g, (m, q, w) => q + (w === "dark" ? "light" : "dark") + q))
+      : [{ eval: LIGHT, expect: true }, ...dark];
+    if (!/"key":\s*"F8"/.test(src)) {
+      // A reload drops body[data-appearance], so light is re-applied after each reload's wait.
+      for (const [i, s] of light.entries()) if (s.eval && /reload\(/.test(s.eval)) {
+        const w = light[i + 1] && light[i + 1].wait ? i + 1 : i;
+        light.splice(w + 1, 0, { eval: LIGHT, expect: true });
+      }
+    }
+    writeFileSync(join(outDir, "dark", basename(f)), JSON.stringify(dark, null, 1));
+    writeFileSync(join(outDir, "light", basename(f)), JSON.stringify(light, null, 1));
+    console.log(join(outDir, "light", basename(f)) + (/"key":\s*"F8"/.test(src) ? " (F8 swap)" : " (body appearance)"));
+  }
+}
+
+// Who fixes a finding: island is shell chrome (build.mjs islands, hint, pill), plant is the shell-drawn
+// plant and its chips, concept is a concept's own cards, panels and pins. An overlap names both sides.
+const CONCEPT_RE = /#(bench|clash|orders|quiet|gate|world)|\.(bench|clash|orders|quiet|gate|world)-/i, PLANT_RE = /#plant\b|#chips\b|\.chip\b/;
+const owner = (s) => (CONCEPT_RE.test(s) ? "concept" : PLANT_RE.test(s) ? "plant" : "island");
+const ownerOf = (f) => { const o = owner(f.selector), m = f.rule === "overlap" && /^overlaps (.+?) "/.exec(f.detail); return m ? [o, owner(m[1])].sort().join(" x ") : o; };
+
+// Counts are findings summed over audits, then distinct (selector and text) in brackets, then ?unknowns.
+// An audit takes the appearance it measured; focus audits and the tail inherit the shot before them.
+function report(roots) {
+  const rows = [], tops = [], owners = new Map();
+  for (const root of roots) for (const name of readdirSync(root).sort()) {
+    const file = join(root, name, "audit-summary.json");
+    if (!existsSync(file)) continue;
+    const s = JSON.parse(readFileSync(file, "utf8")), pass = basename(root), by = new Map(), seen = new Map();
+    let look = "dark";
+    for (const a of s.audits) {
+      look = (a.stats && a.stats.appearance) || look;
+      if (!by.has(look)) by.set(look, { audits: 0, rules: Object.fromEntries(RULES.map((r) => [r, { n: 0, d: new Set(), u: 0 }])) });
+      const b = by.get(look);
+      b.audits++;
+      for (const f of a.findings) {
+        b.rules[f.rule].n++; b.rules[f.rule].d.add(f.selector + "|" + f.text);
+        const ok = f.rule + "|" + ownerOf(f); if (!owners.has(ok)) owners.set(ok, new Set()); owners.get(ok).add(name + "|" + look + "|" + f.selector + "|" + f.text);
+        const k = look + "|" + f.rule + "|" + f.selector + "|" + f.text, e = seen.get(k) || { f, look, shots: [] };
+        if (!e.shots.includes(a.shot)) e.shots.push(a.shot);
+        seen.set(k, e);
+      }
+      for (const u of a.unknown) b.rules[u.rule].u++;
+    }
+    for (const [lk, b] of by) rows.push(`| ${name} | ${pass} | ${lk} | ${b.audits} | ` + RULES.map((r) => { const e = b.rules[r]; return (e.n ? e.n + " (" + e.d.size + ")" : "0") + (e.u ? " ?" + e.u : ""); }).join(" | ") + " |");
+    tops.push(`\n### ${name} · ${pass} pass\n`);
+    for (const r of RULES) for (const { f, look: lk, shots } of [...seen.values()].filter((e) => e.f.rule === r).sort((a, b) => b.shots.length - a.shots.length).slice(0, 4))
+      tops.push(`- ${r} · ${lk} · ${ownerOf(f)} · \`${f.selector}\` · "${f.text}" · ${f.detail} · ${shots.length} shots, first ${shots[0]}`);
+  }
+  const own = [...owners].sort().map(([k, v]) => "| " + k.replace("|", " | ") + " | " + v.size + " |").join("\n");
+  return `| steps file | pass | appearance | audits | ${RULES.join(" | ")} |\n|${"---|".repeat(RULES.length + 4)}\n${rows.join("\n")}\n\nDistinct findings (steps file, appearance, selector, text) by owner:\n\n| rule | owner | distinct |\n|---|---|---|\n${own}\n${tops.join("\n")}`;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [cmd, ...rest] = process.argv.slice(2);
-  if (cmd === "report") console.log(report(rest));
-  else if (cmd === "selftest" && rest[0]) {
-    const dir = mkdtempSync(join(tmpdir(), "acan-audit-selftest-")), steps = join(dir, "selftest.steps.json");
-    writeFileSync(steps, JSON.stringify(SELFTEST_STEPS));
-    const run = spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), "drive.mjs"), rest[0], "", steps, dir], { env: { ...process.env, AUDIT: "1" }, encoding: "utf8" });
-    const s = JSON.parse(readFileSync(join(dir, "audit-summary.json"), "utf8"));
-    const all = s.audits.flatMap((a) => a.findings), shot = s.audits.find((a) => a.shot === "selftest");
-    const checks = SELFTEST_EXPECT.map(([rule, re, n]) => [rule + " " + re + " = " + n, all.filter((f) => f.rule === rule && re.test(f.selector)).length === n]);
-    checks.push(["data-audit-stack opt-out counted and skipped", shot.stats.stackOptOuts === 1 && shot.stats.stackSkips >= 1]);
-    checks.push(["focus restored after its control was removed is unknown, not a finding", shot.unknown.some((u) => u.rule === "focus-steal" && /#fxKeep/.test(u.selector))]);
-    checks.push(["moving text is contrast unknown, not a finding", shot.unknown.some((u) => u.rule === "contrast" && /#fxSlide/.test(u.selector) && /moved/.test(u.detail))]);
-    checks.push(["drive verdict line printed", /\nOK\n/.test(run.stdout)]);
+  if (cmd === "report" && rest.length) console.log(report(rest));
+  else if (cmd === "steps" && rest.length > 1) variants(rest[0], rest.slice(1));
+  else if (cmd === "selftest") {
+    const dir = rest[0] || join(tmpdir(), "audit-fixtures"), checks = selftest(dir);
     for (const [what, ok] of checks) console.log((ok ? "PASS " : "FAIL ") + what);
-    console.log("selftest output in " + dir);
+    console.log("selftest pages, steps, logs and shots in " + dir);
     process.exit(checks.every((c) => c[1]) ? 0 : 1);
-  } else { console.error("usage: node audit.mjs selftest <live-*.html> | node audit.mjs report <outDir>..."); process.exit(2); }
+  } else { console.error("usage: node audit.mjs selftest [dir] | steps <outDir> <steps.json>... | report <outRoot>..."); process.exit(2); }
 }

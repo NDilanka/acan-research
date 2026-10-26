@@ -5,6 +5,7 @@
 //        {audit: "focus"} runs the focus-ring rule; it does nothing without AUDIT=1.
 // AUDIT=1 runs audit.mjs at every shot, writes <outDir>/<shot>.audit.json, checks focus across every wait,
 // prints findings per rule at the end, and exits non-zero on any finding.
+// SIZE=WxH sets the viewport and window size (default 1600x900).
 import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,13 +15,16 @@ const [file, hash = "", stepsPath, outDir = "shots"] = process.argv.slice(2);
 if (!file || !stepsPath) { console.error("usage: node drive.mjs <file.html> <hash> <steps.json> <outDir>"); process.exit(2); }
 const steps = JSON.parse(readFileSync(stepsPath, "utf8"));
 const AUDIT = process.env.AUDIT === "1";
+const size = /^(\d+)x(\d+)$/.exec(process.env.SIZE || "1600x900");
+if (!size) { console.error("SIZE must be WxH, got " + process.env.SIZE); process.exit(2); }
+const [W, H] = [+size[1], +size[2]];
 const auditLib = AUDIT ? await import("./audit.mjs") : null;
 const audits = [], auditCarry = [];
 mkdirSync(outDir, { recursive: true });
 
 const profile = mkdtempSync(join(tmpdir(), "acan-drive-"));
 const chromeBin = process.env.CHROME || (process.platform === "win32" ? "C:/Program Files/Google/Chrome/Application/chrome.exe" : process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome");
-const chrome = spawn(chromeBin, ["--headless=new", "--remote-debugging-port=0", "--user-data-dir=" + profile, "--no-first-run", "--hide-scrollbars", "--window-size=1600,900", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+const chrome = spawn(chromeBin, ["--headless=new", "--remote-debugging-port=0", "--user-data-dir=" + profile, "--no-first-run", "--hide-scrollbars", "--window-size=" + W + "," + H, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
 const port = await new Promise((ok, no) => {
   let buf = "";
   chrome.stderr.on("data", (d) => { buf += d; const m = buf.match(/DevTools listening on ws:\/\/[^:]+:(\d+)\//); if (m) ok(m[1]); });
@@ -52,7 +56,7 @@ const evaluate = async (expression) => {
 const mouse = async (x, y, type) => send("Input.dispatchMouseEvent", { type, x, y, button: "left", buttons: type === "mouseReleased" ? 0 : 1, clickCount: 1, pointerType: "mouse" });
 
 await send("Page.enable"); await send("Runtime.enable"); await send("Log.enable");
-await send("Emulation.setDeviceMetricsOverride", { width: 1600, height: 900, deviceScaleFactor: 1, mobile: false });
+await send("Emulation.setDeviceMetricsOverride", { width: W, height: H, deviceScaleFactor: 1, mobile: false });
 const loaded = once("Page.loadEventFired");
 await send("Page.navigate", { url: "file://" + resolve(file) + (hash ? "#" + hash.replace(/^#/, "") : "") });
 await loaded; await sleep(900);
@@ -104,18 +108,16 @@ for (const [i, s] of steps.entries()) {
         const r = await auditLib.audit({ send, evaluate }, data);
         r.stats.ms = Date.now() - t;
         for (const c of auditCarry.splice(0).reverse()) c.unknown ? (delete c.unknown, r.unknown.unshift(c)) : r.findings.unshift(c);
-        writeFileSync(join(outDir, s.shot + ".audit.json"), JSON.stringify({ shot: s.shot, step: i + 1, ...r }, null, 1));
-        audits.push({ shot: s.shot, ...r });
-        console.log(`audit ${s.shot}: ${r.findings.length} findings, ${r.unknown.length} unknown, ${r.stats.ms} ms`);
+        audits.push(Object.defineProperty({ shot: s.shot, step: i + 1, ...r }, "finish", { enumerable: false, value: r.finish }));
+        console.log(`audit ${s.shot}: page reads ${r.stats.ms} ms`);
       }
     } else if (s.audit) {
       if (AUDIT) {
         if (s.audit !== "focus") throw new Error("unknown audit " + s.audit);
         const name = "step-" + (i + 1) + "-focus";
         const r = await auditLib.auditFocus({ send, evaluate });
-        writeFileSync(join(outDir, name + ".audit.json"), JSON.stringify({ shot: name, step: i + 1, ...r }, null, 1));
-        audits.push({ shot: name, ...r });
-        console.log(`audit ${name}: ${r.findings.length} findings, ${r.stats.checked} of ${r.stats.focusable} controls`);
+        audits.push({ shot: name, step: i + 1, ...r });
+        console.log(`audit ${name}: ${r.findings.length} findings, ${r.stats.checked} of ${r.stats.focusable} controls, ${r.stats.ms} ms`);
       }
     } else throw new Error("unknown step");
   } catch (e) { failures.push(`${tag}: ${e.message}`); }
@@ -132,6 +134,11 @@ for (const f of failures) console.log("FAIL " + f);
 let auditFindings = 0;
 if (AUDIT) {
   if (auditCarry.length) audits.push({ shot: "after-last-shot", findings: auditCarry.filter((c) => !c.unknown), unknown: auditCarry.filter((c) => c.unknown), stats: {} });
+  for (const a of audits) {
+    if (a.finish) a.finish();
+    writeFileSync(join(outDir, a.shot + ".audit.json"), JSON.stringify(a, null, 1));
+    if (!/-focus$/.test(a.shot)) console.log(`audit ${a.shot}: ${a.findings.length} findings, ${a.unknown.length} unknown`);
+  }
   const by = Object.fromEntries(auditLib.RULES.map((r) => [r, { findings: 0, distinct: new Set(), unknown: 0 }]));
   for (const a of audits) {
     for (const f of a.findings) { by[f.rule].findings++; by[f.rule].distinct.add(f.selector + "|" + f.text + "|" + f.detail.replace(/[\d.]+/g, "#")); }
