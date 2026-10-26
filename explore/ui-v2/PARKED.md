@@ -67,7 +67,7 @@ Resume file for a fresh orchestrator chat. Updated 2026-10-27. No loops. The one
      - Add `SIZE=WxH` to `drive.mjs`.
      - Run it over every steps file in dark and light, with shots to `/tmp/audit-<id>`. Write `review/audit-r1.md`.
      - Edit only `audit.mjs`, the AUDIT and SIZE code in `drive.mjs`, and the review.
-2. **Audit rules and shots.** The word-budget rule is done (7214708). The island rule from SHELL.md section 6 is with delegate 23e588f2. Verify its selftest and that its findings match SHELL.md section 7, then commit. Show the user the `shots/shell-*` before and after pairs.
+2. **Audit rules and shots (done 2026-10-27).** Word-budget (7214708) and island rules (b8b7071) are in audit.mjs, selftest 135 of 135. Island findings match SHELL.md section 7 plus new real violations the journey build owns: toasts centre on the viewport instead of the free rect, world cards miss the 392 px slot, the world queue top is 180 not 100 at 1600, `.fl.bl` height varies (152 to 200), quiet and bench cards scroll at 1280, and clash's card overlaps Layers at 1600. Before and after pairs are in `shots/shell-*`. The `live-*.html` builds are tracked but always dirty, because every drive rebuilds them; the user has not decided whether to untrack them.
 3. **Revise `JOURNEY.md`** (Opus). Apply spec-review items 3 to 11, and reconcile it with SHELL.md and TEXT.md.
 4. **Build the journey** (Opus). Inputs are the revised JOURNEY.md, SHELL.md, TEXT.md, and every must-fix in `review/*-r2.md`. Verify at 1280x800 and 1440x900, in light, with kv=offline, and with AUDIT=1.
 5. **Run a cross-lab journey critique** (G5), then fix rounds.
