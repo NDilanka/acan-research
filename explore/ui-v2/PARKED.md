@@ -1,6 +1,8 @@
 # Parked session: Acan agentic UX (ui-v2)
 
-Resume file for a fresh orchestrator chat. Updated 2026-10-27. No loops. The one running subagent is the island audit rule delegate 23e588f2-42bc-4264-a664-cc40a0e8c587 (step 2). If this chat is gone, it is dead: launch fresh with the same brief.
+Resume file for a fresh orchestrator chat. Updated 2026-10-27. No loops. The one running subagent is the step 3 JOURNEY delegate 4cd31a10-dc26-4a16-859b-33d93e8cbefe (pv-opus-high, spec only). If this chat is gone, it is dead: launch fresh with the same brief (items 3 to 11, SHELL and TEXT reconciliation, light rule below).
+
+**User feedback, 2026-10-27.** The shell before and after shots look nearly the same (true: orders before and after light are almost pixel-identical; the round fixed alignment, not look). Light screens show dark cards and decks, and the white looks off. Cause: the l-light-mode direction (vellum `#F4F1EA`, brass `#795A27`, never invert, no pure white canvas) reached only `concepts/world.mjs`. Other concepts and ui-v1 modules hard-code dark whites, the anatomy kit's default light faces are `#ffffff`, and SHELL.md pinned decks and inspector to dark. Step 3 makes the full token sheet a journey requirement. The user is still not satisfied with the UI redesign overall; what dissatisfies them is being asked. Live HTMLs stay tracked (user: okay). The Kvarm question (p-kvarm-rewrite.md commit) is unresolved; it stays local.
 
 **State on 2026-10-27 (HEAD 837fe4c).** Step 1 is done. SHELL.md, TEXT.md, audit.mjs with the text-budget rule, the island shell on every concept, and the 15 JOURNEY synthesis changes are committed. The full suite passes 12 of 12 three runs in a row. Step flakes came from machine load. Steps now poll for scripted events instead of fixed sleeps, wheel gestures go in one eval, and drive.mjs waits for the concept page load and kills the Chrome tree on Windows. New steps must poll, not sleep, for anything driven by a timer.
 
@@ -73,6 +75,10 @@ Resume file for a fresh orchestrator chat. Updated 2026-10-27. No loops. The one
 5. **Run a cross-lab journey critique** (G5), then fix rounds.
 6. **Run the cold first-use test** (G6): six tasks, two models.
 7. **Finish up.** Update the READINESS status column, refresh the proposal's prototype section (G7), do the browser walkthrough with the user (G8), then give the go signal.
+
+## Post-go candidates
+
+From `research/agentic-ux/q-software-factory.md` (the Warp software factory talk). None is built before the go signal. 1. Suggest a standing must-keep witness where a clash or readback disagreement keeps recurring, accepted with one key. 2. Witnesses as a private benchmark: first-try match rate per agent and cost per order. 3. Ledger-sourced numbers in the return brief: times asked, post to claim time, bytes sent. The raw transcript `research/software factory.txt` stays uncommitted.
 
 ## Open questions for the user
 
