@@ -21,8 +21,11 @@ const LIST = ONLY ? CONCEPTS.filter((c) => c.id === ONLY) : CONCEPTS;
 if (ONLY && !LIST.length) throw new Error("unknown concept " + ONLY + ", expected one of " + CONCEPTS.map((c) => c.id).join(", "));
 const OUT = process.env.OUT || (ONLY ? "live-" + ONLY + ".html" : "live.html");
 const CBAR = '<nav class="cbar' + (LIST.length === 1 ? " solo" : "") + '" id="cbar">' + LIST.map((c) => '<a href="#c=' + c.id + '" data-c="' + c.id + '">' + c.label + "</a>").join("") + "</nav>";
+// Concept ids may carry hyphens (dir-a), which an identifier cannot.
+const initName = (id) => id.replace(/\W/g, "_") + "Init";
 const HINTS = Object.fromEntries(LIST.map((c) => [c.id, c.hint || ""]));
-const CBAR_CSS = ".cbar.solo{display:none}.cbar{position:fixed;top:var(--below);left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:3px;border-radius:9px;background:var(--glass);border:1px solid var(--line);z-index:40;font:500 11px var(--sans)}.cbar a{color:var(--dim);text-decoration:none;padding:4px 10px;border-radius:6px}.cbar a:hover{color:var(--text)}body[data-concept] .cbar a[aria-current]{color:#111;background:#c9a45c}body[data-concept] .toast,body[data-concept] .toast.on{bottom:auto;transform:none;transition:none;max-width:440px;z-index:60;line-height:1.45}";
+const CBAR_CSS = ".cbar.solo{display:none}.cbar{position:fixed;top:var(--below);left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:3px;border-radius:9px;background:var(--glass);border:1px solid var(--line);z-index:40;font:500 11px var(--sans)}.cbar a{color:var(--dim);text-decoration:none;padding:4px 10px;border-radius:6px}.cbar a:hover{color:var(--text)}body[data-concept] .cbar a[aria-current]{color:#111;background:#c9a45c}body[data-concept] .toast,body[data-concept] .toast.on{bottom:auto;transform:none;transition:none;max-width:440px;z-index:60;line-height:1.45}"
+  + "body[data-stage=own] #stage>:is(#grid,#world,#callouts){display:none}body[data-stage=own] #stage{cursor:default;transition:none}";
 // Concept pages: a toast describes only the latest action, so any key or press clears it before handlers run.
 // Registered in <head> so it runs ahead of every other capture listener.
 const TOAST_DISMISS = '<script>for (const t of ["keydown", "pointerdown"]) addEventListener(t, (e) => { if (!document.body || !document.body.dataset.concept || (t === "keydown" && ["Shift", "Alt", "Control", "Meta"].includes(e.key))) return; const el = document.getElementById("toast"); if (el) el.classList.remove("on"); }, true);</script>';
@@ -438,10 +441,11 @@ function toggleExplode(id = selected) {
   animate();
 }
 
-stage.addEventListener("wheel", (e) => { e.preventDefault(); const r = stage.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); used(); }, { passive: false });
+stage.addEventListener("wheel", (e) => { if (OWN_STAGE) return; e.preventDefault(); const r = stage.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); used(); }, { passive: false });
 stage.addEventListener("contextmenu", (e) => e.preventDefault());
 let drag = null;
 stage.addEventListener("pointerdown", (e) => {
+  if (OWN_STAGE) return;
   const orbit = e.button === 2 || e.shiftKey;
   if (orbit) repivot();
   drag = { x: e.clientX, y: e.clientY, gx: goal.x, gy: goal.y, az: camGoal.az, el: camGoal.el, orbit, moved: false };
@@ -609,12 +613,14 @@ addEventListener("keydown", (e) => {
   const m = !e.shiftKey && { 1: "live", 2: "blueprint", 3: "simulate", 4: "replay" }[e.key];
   if (m) setMode(m);
   const key = e.key.toLowerCase();
-  if (key === "f") fit();
   if (key === "l") $("#layers").classList.toggle("open");
-  if (key === "q") $("#rotL").click();
-  if (key === "e") $("#rotR").click();
-  if (key === "t") $("#top").click();
-  if (key === "x") toggleExplode();
+  if (!OWN_STAGE) {
+    if (key === "f") fit();
+    if (key === "q") $("#rotL").click();
+    if (key === "e") $("#rotR").click();
+    if (key === "t") $("#top").click();
+    if (key === "x") toggleExplode();
+  }
   used();
 });
 addEventListener("keyup", (e) => { if (e.key === "Alt") { document.body.classList.remove("alt"); layoutChips(); } });
@@ -636,6 +642,9 @@ const SHELL = ${JSON.stringify(SHELL)};
 const CONCEPT = new URLSearchParams(location.hash.slice(1)).get("c") || "";
 const conceptActive = (id) => CONCEPT === id;
 if (CONCEPT) document.body.dataset.concept = CONCEPT;
+// A concept with stage: "own" draws its own plane in #stage and owns the camera; the ui-v1 plant stays hidden under it.
+const OWN_STAGE = ${JSON.stringify(LIST.filter((c) => c.stage === "own").map((c) => c.id))}.includes(CONCEPT);
+if (OWN_STAGE) document.body.dataset.stage = "own";
 // One appearance for the whole window. Dark is the default so a headless run never inherits the host's colour scheme.
 function shellAppearance(v) {
   document.body.dataset.appearance = v === "system" ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : v;
@@ -759,7 +768,7 @@ requestAnimationFrame(() => {
   if (params.get("explode")) { toggleExplode(params.get("sel")); explode.t = 1; renderPlant(); apply(); }
   if (params.get("hover")) { hovered = params.get("hover"); paintSelection(); }
   bpInit(params); floorInit(params); chInit(params); simInit(params); rpInit(params); frInit(params); shInit(params);
-  ${LIST.map((c) => c.id + "Init(params);").join(" ")}
+  ${LIST.map((c) => initName(c.id) + "(params);").join(" ")}
 });
 `;
 

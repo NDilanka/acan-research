@@ -1,6 +1,7 @@
 // Builds and drives steps files one at a time across every caller (agents included) via a shared lock dir.
 // Usage: node run-steps.mjs [concepts/<name>.steps.json ...]   (no args: every steps file)
 // Env passes through to drive.mjs (AUDIT=1, SIZE=WxH). OUTROOT sets the shot root (default <tmp>/acan-steps).
+// APPEARANCE=light|dark|system opens the page in that appearance. A steps file <id>-kv-<scenario> opens concept <id> with kv=<scenario>.
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,9 +29,9 @@ function acquire() {
 let fail = 0;
 for (const f of files) {
   const name = basename(f, ".steps.json");
-  const id = name.split("-")[0];
   const kv = /-kv-(\w+)$/.exec(name);
-  const hash = `c=${id}` + (kv ? `&kv=${kv[1]}` : "");
+  const id = kv ? name.slice(0, kv.index) : name;
+  const hash = `c=${id}` + (kv ? `&kv=${kv[1]}` : "") + (process.env.APPEARANCE ? `&appearance=${process.env.APPEARANCE}` : "");
   const out = join(root, name);
   mkdirSync(out, { recursive: true });
   acquire();

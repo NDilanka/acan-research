@@ -66,12 +66,13 @@ body.queue-open .bl .wait{border-bottom-left-radius:0;border-bottom-right-radius
 .rv-m.risk b{color:#f1d5a2}
 .rv-m code{font:9.5px var(--mono);color:var(--dim);white-space:nowrap}
 .pips{display:flex;gap:3px}.pips i{flex:1;height:4px;border-radius:2px;background:#2a2a2a}.pips i.on{background:#d6d6d6}
-.alt{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:12px;color:#d8d8d8}
-.alt:first-of-type{border-top:0}
-.alt small{display:block;font:10px var(--mono);color:var(--faint);margin-top:2px}
-.alt button{height:26px;padding:0 10px;border-radius:7px;border:1px solid var(--line2);font-size:11.5px;color:#ddd;white-space:nowrap}
-.alt button:hover{background:rgba(255,255,255,.06)}
-.alt.picked{color:#cfe6fb}.alt.picked button{border-color:#cfe6fb;color:#cfe6fb}
+/* div.alt, not .alt: holding Alt puts .alt on <body>, which these rules would restyle. */
+div.alt{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:12px;color:#d8d8d8}
+div.alt:first-of-type{border-top:0}
+div.alt small{display:block;font:10px var(--mono);color:var(--faint);margin-top:2px}
+div.alt button{height:26px;padding:0 10px;border-radius:7px;border:1px solid var(--line2);font-size:11.5px;color:#ddd;white-space:nowrap}
+div.alt button:hover{background:rgba(255,255,255,.06)}
+div.alt.picked{color:#cfe6fb}div.alt.picked button{border-color:#cfe6fb;color:#cfe6fb}
 .rv-why{display:none;flex-direction:column;gap:6px;padding:10px;border-radius:10px;border:1px solid rgba(232,96,74,.35);background:rgba(232,96,74,.05)}
 .rv-why.on{display:flex}
 .rv-why label{font-size:12px;color:#f0c2b8}

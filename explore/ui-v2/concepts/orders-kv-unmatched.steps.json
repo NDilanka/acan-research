@@ -66,10 +66,7 @@
     "shot": "orders-kv-unmatched-flag"
   },
   {
-    "wait": 1500
-  },
-  {
-    "eval": "[ordersState.arrived.length,document.querySelector('.bl .wait b').textContent]",
+    "eval": "(async()=>{for(let i=0;i<200&&ordersState.arrived.length<2;i++)await new Promise(r=>setTimeout(r,30));return [ordersState.arrived.length,document.querySelector('.bl .wait b').textContent]})()",
     "expect": [
       2,
       "9"
