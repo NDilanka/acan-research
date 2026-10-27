@@ -156,4 +156,4 @@ These were measured in the builds and are not fixed by the shell.
 - **`.fl.bl` is 168 tall.** It cuts 120 px into the free rect's bottom-left corner. The world level's `.world-bl` is one row tall, as `JOURNEY.md` asks.
 - **The world bottom-right island is wider than the ui-v1 one** (936 to 1151 at 1600 against 570) because it carries the connection readout inline.
 - **Replay deck and inspector type** is 9 to 10.5 px. Rule 12 fails.
-- **The decks and inspector stay dark in light appearance.** They are pinned to graphite tokens so their text keeps contrast on the bright stage.
+- **The decks and inspector stay dark in light appearance.** This breaks the light rule in `JOURNEY.md` section 1, "Light appearance", which turns every surface light. That section holds the tokens and the sources to remove.
