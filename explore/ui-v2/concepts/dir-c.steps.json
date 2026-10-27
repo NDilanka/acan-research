@@ -58,5 +58,9 @@
   {"eval":"(async()=>{dirFrame('F8');return await dirPoll(()=>dirState().frame==='F8'&&document.body.dataset.dirFrame==='F8')})()","expect":true},
   {"eval":"[dirCheck(),dirShell(),dirRunning()]","expect":[[],[true,true],0]},
   {"eval":"(()=>{const a=dirProof.f3.marks,b=dirMarks();return [dirState().alt,document.body.classList.contains('alt'),Object.keys(a).filter(k=>k in b&&(a[k][0]!==b[k][0]||a[k][1]!==b[k][1])),dirIslands()===dirProof.f3.islands]})()","expect":[true,true,[],true]},
-  {"shot":"dir-c-F8"}
+  {"shot":"dir-c-F8"},
+  {"eval":"(async()=>{dirFrame('F3');await dirPoll(()=>dirState().frame==='F3'&&document.body.dataset.dirFrame==='F3');dirProof.perf=await dirCPerf();return dirProof.perf.frames})()","expect":180},
+  {"eval":"JSON.stringify(dirProof.perf)"},
+  {"eval":"[dirProof.perf.p95<16,dirCheck(),dirRunning(),JSON.stringify(dirState().camera)===dirProof.f3.cam,document.querySelectorAll('#dir-c-plane [data-plant]').length]","expect":[true,[],0,true,5]},
+  {"eval":"(async()=>{dirFrame('F3');await dirPoll(()=>dirState().frame==='F3'&&document.body.dataset.dirFrame==='F3');const k=(key,o)=>(document.activeElement||document.body).dispatchEvent(new KeyboardEvent('keydown',Object.assign({key,bubbles:true,cancelable:true},o||{})));k('i');const a=await dirPoll(()=>dirState().card==='clash:c1',40);k('Escape');const b=await dirPoll(()=>dirState().card===null,40);k('k',{ctrlKey:true});const g=await dirPoll(()=>{const e=document.getElementById('dir-c-goto');return e&&!e.hidden},40);k('Escape');const h=await dirPoll(()=>document.getElementById('dir-c-goto').hidden,40);return [!!a,!!b,!!g,!!h,dirRunning()]})()","expect":[true,true,true,true,0]}
 ]
